@@ -1,0 +1,558 @@
+---
+title: "EDA"
+author: "Marcel Radwański"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+**Wczytanie bibliotek**
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(AmesHousing)
+library(knitr)
+library(kableExtra)
+opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+**Ustawienie jednakowego motywu dla wykresów i definicja funkcji do tworzenia tabeli**
+```{r}
+theme_set(theme_light())
+
+tabela <- function(df, ...){
+  df %>%
+    kable(...) %>%
+    kable_styling(
+      bootstrap_options = c("striped", "hover", "bordered", "condensed"),
+      full_width = TRUE,
+      position = "center"
+    ) %>%
+    row_spec(0, bold = TRUE, color = "black", background = "slategray")
+}
+```
+
+**Wczytanie i wstępne przetworzenie danych**
+```{r}
+m2 <- 0.092903
+
+data <- make_ames() %>%
+  select(
+    sale_price = Sale_Price,
+    ground_living_area = Gr_Liv_Area,
+    basement_area = Total_Bsmt_SF,
+    lot_area = Lot_Area,
+    garage_area = Garage_Area,
+    quality_overall = Overall_Qual,
+    condition_overall = Overall_Cond,
+    year_built = Year_Built,
+    year_remod = Year_Remod_Add,
+    neighborhood = Neighborhood,
+    building_type = Bldg_Type,
+    full_baths = Full_Bath,
+    month_sold = Mo_Sold,
+    sale_condition = Sale_Condition
+  ) %>%
+  mutate(
+    total_living_area = ground_living_area + basement_area,
+    ground_living_area = round(ground_living_area * m2, 2),
+    basement_area = round(basement_area * m2, 2),
+    total_living_area  = round(total_living_area * m2, 2),
+    lot_area = round(lot_area * m2, 2),
+    garage_area = round(garage_area * m2, 2)
+  ) %>%
+  select(
+    cena_sprzedazy = sale_price,
+    pow_mieszkalna_naziemna = ground_living_area,
+    pow_piwnicy = basement_area,
+    pow_calkowita = total_living_area,
+    pow_dzialki = lot_area,
+    pow_garazu = garage_area,
+    jakosc_ogolna = quality_overall,
+    stan_ogolny = condition_overall,
+    rok_budowy = year_built,
+    rok_modernizacji = year_remod,
+    miesiac_sprzedazy = month_sold,
+    dzielnica = neighborhood,
+    typ_zabudowy = building_type,
+    warunki_sprzedazy = sale_condition,
+    pelne_lazienki = full_baths
+  )
+```
+
+**Zmiana wartości w kolumnach na język polski**
+```{r}
+library(forcats)
+
+data <- data %>%
+  mutate(
+    across(c(jakosc_ogolna, stan_ogolny), ~ fct_recode(.,
+      "Bardzo słaba" = "Very_Poor",
+      "Słaba" = "Poor",
+      "Dostateczna" = "Fair",
+      "Poniżej średniej" = "Below_Average",
+      "Średnia" = "Average",
+      "Powyżej średniej" = "Above_Average",
+      "Dobra" = "Good",
+      "Bardzo dobra" = "Very_Good",
+      "Doskonała" = "Excellent",
+      "Wybitna" = "Very_Excellent"
+    )),
+    warunki_sprzedazy = fct_recode(warunki_sprzedazy,
+      "Normalna" = "Normal",
+      "Częściowa" = "Partial",
+      "Rodzinna" = "Family",
+      "Nietypowa" = "Abnorml",
+      "Alokacja" = "Alloca",
+      "Grunt przyległy" = "AdjLand"
+    ),
+    dzielnica = str_replace_all(dzielnica, "_", " "),
+    typ_zabudowy = case_match(typ_zabudowy,
+      "OneFam" ~ "Jednorodzinna",
+      "TwoFmCon" ~ "Dwurodzinna",
+      "Duplex" ~ "Bliźniak",
+      "Twnhs" ~ "Szeregowa", 
+      "TwnhsE"   ~ "Szeregowa",
+    )
+  )
+```
+
+# Opis danych
+
+Zbiór danych AmesHousing zawiera informacje o transakcjach sprzedaży nieruchomości w mieście Ames w stanie Iowa.  
+Zawiera on 81 kolumn, z których wybrane zostały:
+
+1. **cena_sprzedazy**: Cena sprzedaży nieruchomości wyrażona w dolarach amerykańskich
+
+2. **pow_mieszkalna_naziemna**: Powierzchnia mieszkalna domu nad ziemią (z wyłączeniem piwnicy) w m^2^.
+
+3. **pow_piwnicy**: Całkowita powierzchnia piwnicy w m^2^.
+
+4. **pow_calkowita** (zmienna utworzona): Suma powierzchni naziemnej oraz powierzchni piwnicy. 
+
+5. **lot_area**: Całkowita powierzchnia działki w m^2^.
+
+6. **pow_dzialki**: Powierzchnia garażu.
+
+7. **jakosc_ogolna**: Ogólna ocena materiałów i jakości wykończenia domu.
+
+8. **stan_ogolny**: Ogólna ocena stanu technicznego i konserwacji budynku.
+
+9. **rok_budowy**: Rok budowy nieruchomości.
+
+10. **rok_modernizacji**: Rok ostatniego remontu lub modernizacji. Jeśli nie było remontu, data jest rokiem budowy.
+
+11. **miesiac_sprzedazy**: Miesiąc, w którym dokonano transakcji.
+
+12. **dzielnica**: Dzielnica miasta Ames.
+
+13. **typ_zabudowy**: Typ budynku (np. dom jednorodzinny, bliźniak, zabudowa szeregowa).
+
+14. **warunki_sprzedazy**: Warunki zawarcia transakcji (np. Normalna – standardowa sprzedaż rynkowa, Częściowa - sprzedaż nieukończonej nieruchomości, Nietypowa – sprzedaż wymuszona, Rodzinna – sprzedaż między członkami rodziny).
+
+15. **pelne_lazienki**: Liczba pełnych łazienek w domu.
+
+# Wstępne obserwacje
+
+```{r}
+data %>%
+  psych::describe() %>%
+  as_tibble(rownames = "Zmienna") %>%
+  select(Zmienna, n, mean, sd, median, min, max, skew, kurtosis) %>%
+  tabela(
+    digits = 2,
+    col.names = c("Zmienna", "N", "Średnia", "Odch. Std", "Mediana", "Min", "Max", "Skośność", "Kurtoza")
+  )
+```
+
+1. **cena_sprzedazy**: Dane wskazują na ogromną rozpiętość cenową rynku, średnia jest wyraźnie większa od mediany, co sugeruje obecność drogich nieruchomości zawyżających średnią rynkową. Zmienna charakteryzuje się wyraźną asymetrią prawostronną, wysoka kurtoza wskazuje na koncentrację wartości wokół średniej oraz występowanie wartości skrajnych.
+
+2. **pow_mieszkalna_naziemna**: Rozkład powierzchni mieszkalnej nad ziemią wykazuje dodatnią skośność. Wartości średniej i mediany są do siebie zbliżone, jednak maksymalna wartość jest prawie czterokrotnością średniej, co może wskazywać na pojedyncze rezydencje o bardzo dużej powierzchni.
+
+3. **pow_piwnicy**: interpretacja zmiennej jest utrudniona, ze względu na fakt, że minimalna wartość = 0, oznaczająca brak piwnicy, występuje w zbiorze na tyle często, że może znacząco zaniżać średnią arytmetyczną.
+
+4. **pow_calkowita**: zmienna daje realny obraz całkowitej przestrzeni, jaką dysponuje nabywca. Zbliżona wartość średniej (236.99m^2^) i mediany (227.80m^2^) wskazuje na symetrię rozkładu. Bardzo wysoka kurtoza (9.73) potwierdza, że rozkład jest leptokurtyczny. Większość domów ma bardzo zbliżony, standardowy metraż, ale istnieją nieruchomości o bardzo dużej powierzchni (dodatnia skośność).
+
+5. **pow_dzialki**: Rozkład zmiennej wskazuje na duże zróżnicowanie: zdecydowana większość działek w Ames to standardowe ogródki przydomowe (mediana ok. 877m^2^), natomiast wartości statystyk są mocno zaburzone przez nieruchomości położone na działkach o ogromnej powierzchni.
+
+6. **pow_garazu**: Podobnie jak w przypadku piwnic, wartości statystyk są zaniżone przez nieruchomości bez garażu.
+
+7. **rok_budowy**: Rozkład roku budowy wykazuje lekką skośność ujemną, co oznacza, że w zbiorze przeważają budynki nowsze nad bardzo starymi. Zakres danych obejmuje 138 lat (1872–2010), przy czym mediana (1973) wskazuje, że połowa sprzedanych nieruchomości została wybudowana w ciągu ok. 40 lat przed ostatnią transakcją.
+
+8. **rok_modernizacji**: Należy pamiętać o definicji zmiennej - jeśli dom nie był remontowany, wpisywana jest data budowy. Fakt, że mediana roku remontu (1993) jest o 20 lat wyższa od mediany roku budowy (1973), wskazuje, że znaczna część starszych budynków przeszła modernizację.
+
+9. **miesiac_sprzedazy**: Średnia oraz mediana wskazują na czerwiec jako szczyt aktywności rynkowej. Niska skośność sugeruje, że rozkład jest symetryczny. Ujemna kurtoza wskazuje, że szczyt ilości transakcji, nie jest skupiony w jednym miesiącu. Można przypuszczać że wysoka liczba transakcji występuje przez parę miesięcy w połowie roku, a ich liczba spada jesienią w podobny sposób w jaki wzrasta wiosną. Te przypuszczenia potwierdza poniższy wykres:
+```{r out.width="60%", fig.align="center"}
+data %>%
+  mutate(miesiac_sprzedazy = as.factor(miesiac_sprzedazy)) %>%
+  ggplot(aes(x = miesiac_sprzedazy)) +
+  geom_bar(fill = "darkslateblue", color = "white") +
+  labs(
+    title = "Liczba sprzedanych nieruchomości w poszczególnych miesiącach",
+    x = "Miesiąc",
+    y = "Liczba transakcji"
+  )
+```
+10. **pelne_lazienki**: zmienna o małej liczbie unikalnych wartości (zakres 0-4), charakteryzuje się niskim odchyleniem standardowym. Średnia 1.57 przy medianie 2.00 sugeruje, że standardem są domy z 1-2 łazienkami, a nieruchomości z 3 lub 4 łazienkami są relatywnie rzadkie, ale występują.
+
+# Analiza zmiennych kategorycznych
+
+```{r}
+data %>%
+  count(jakosc_ogolna) %>%
+  tabela(col.names = c("Ocena jakości wykończenia", "Liczba domów"))
+```
+Rozkład ocen jakości wykończenia jest asymetryczny, z wyraźną dominacją nieruchomości o standardzie średnim i wyższym. Zdecydowana większość obserwacji koncentruje się po prawej stronie od wartości średniej. Wskazuje to, że na rynku w Ames znacznie częściej występują domy o podwyższonym standardzie niż budynki zaniedbane, które stanowią jedynie margines wszystkich transakcji.
+
+```{r}
+data %>%
+  count(stan_ogolny) %>%
+  tabela(col.names = c("Ocena stanu technicznego", "Liczba domów"))
+```
+W przypadku ogólnego stanu technicznego budynku obserwujemy bardzo silną koncentrację wyników w jednej kategorii - ponad połowa obserwacji została oceniona jako średnia. W odróżnieniu od jakości wykończenia, tutaj znacznie rzadziej spotykamy oceny wysokie, co sugeruje, że wiele nieruchomości zostało wykonanych z jakościowych materiałów, ale zostały zaniedbane i nie są utrzymywane w dobrej kondycji.
+
+```{r}
+data %>% 
+  count(typ_zabudowy) %>%
+  tabela(col.names = c("Typ zabudowy", "Liczba domów"))
+```
+
+Struktura zabudowy w zbiorze jest zdominowana przez wolnostojące domy jednorodzinne, które stanowią ok. 83% wszystkich transakcji. Potwierdza to fakt, że Ames jest niewielkim podmiejskim miastem: jest to 9 pod względem ludności miasto w stanie Iowa, spośród tej populacji ok. połowa to studenci Iowa State University ( informacje z anglojęzycznego artykułu Wikipedii)
+
+```{r}
+data %>% 
+  count(dzielnica, sort = TRUE) %>% 
+  tabela(col.names = c("Dzielnica", "Liczba transakcji"))
+```
+
+Dane wskazują na bardzo silną koncentrację rynku w dzielnicy North Ames, która z wynikiem 443 transakcji jest zdecydowanym liderem, niemal dwukrotnie przewyższającym drugie w zestawieniu College Creek. Na końcu zestawienia znajduje się wiele dzielnic o bardzo małej liczbie transakcji, co może sugerować, że są to obszary bardzo małe, ekskluzywne lub o niskiej płynności obrotu nieruchomościami.
+
+```{r}
+data %>% 
+  count(warunki_sprzedazy) %>%
+  tabela(col.names = c("Warunki sprzedaży", "Liczba domów"))
+```
+
+Zdecydowana większość transakcji w zbiorze odbyła się na standardowych warunkach rynkowych. Obecność kategorii innych niż "Normalna" sugeruje, że niektóre ceny nieruchomości mogą znacząco zniekształcone.
+
+# Rozkład zmiennej objaśnianej - ceny
+```{r}
+data %>%
+  ggplot(aes(x = cena_sprzedazy)) +
+  geom_histogram(bins = 30, fill = "navy", color = "white") +
+  scale_x_continuous(labels = scales::dollar_format()) +
+  labs(
+    title = "Rozkład cen sprzedaży nieruchomości",
+    x = "Cena sprzedaży ($)",
+    y = "Liczba domów"
+  )
+
+data$cena_sprzedazy %>%
+  summary() %>%
+  as.list() %>%          
+  as.data.frame() %>%
+  tabela(
+    digits = 0,          
+    col.names = c("Min.", "1. Kwartyl", "Mediana", "Średnia", "3. Kwartyl", "Max.")
+  )
+```
+
+Rozkład cen nieruchomości charakteryzuje się prawostronną asymetrią. W Ames dominują nieruchomości tanie i o umiarkowanej cenie.
+
+Średnia (180 796 USD) jest wyraźnie wyższa od mediany (160 000 USD), co wskazuje, że grupa najdroższych nieruchomości zawyża średnią cenę rynkową.
+
+Połowa wszystkich transakcji mieści się w przedziale od 129 500 USD do 213 500 USD.
+
+Cena minimalna stanowi niecałe 10% wartości pierwszego kwartyla, co sugeruje, że może ona dotyczyć nieprzeciętnej transakcji, np. nieruchomości do rozbiórki lub sprzedaży między powiązanymi podmiotami. 
+
+Cena maksymalna stanowi ponad 350% wartości trzeciego kwartyla, może to implikować istnienie w zbiorze nieruchomości luksusowych i/lub o niezwykle dużej powierzchni.
+
+# Analiza wartości skrajnych
+
+```{r}
+data %>%
+  ggplot(aes(x = pow_mieszkalna_naziemna, y = cena_sprzedazy)) +
+  geom_point(color = "lightsalmon", alpha = 0.5) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "black") +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  labs(
+    title = "Związek między powierzchnią a ceną sprzedaży",
+    x = "Powierzchnia nad ziemią (m²)",
+    y = "Cena sprzedaży"
+  )
+```
+
+Wykres punktowy obrazuje silną, dodatnią korelację między mieszkalną powierzchnią nadziemną, a ceną sprzedaży. Oznacza to, że wielkość metrażu stanowi jeden z kluczowych czynników determinujących wartość nieruchomości — wraz ze wzrostem powierzchni rośnie również przeciętna cena rynkowa. 
+
+Widać również, że rozproszenie punktów względem linii trendu nie jest jednorodne - rozrzut obserwacji wokół linii trendu rośnie wraz ze wzrostem powierzchni nadziemnej: w przypadku mniejszych domów ceny są relatywnie skupione, natomiast w przypadku dużych nieruchomości o cenie końcowej decydują inne czynniki (nie sam metraż).
+
+Najważniejsze anomalie widać w dolnym prawym rogu wykresu: są to nieruchomości, które mimo bardzo dużego metraży mają relatywnie niskie ceny. Odstają od rynkowego trendu, co może wskazywać na ich nietypowość. 
+Obserwacje w górnym prawym rogu, czyli o wysokiej cenie i dużej powierzchni, mogą nie być anomaliami, a reprezentować nieruchomości luksusowe.
+
+```{r}
+data %>%
+  ggplot(aes(x = pow_mieszkalna_naziemna, y = cena_sprzedazy)) +
+  geom_point(color = "lightsalmon", alpha = 0.5, size = 1.2) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "black", linewidth = 0.4) +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  facet_wrap(~warunki_sprzedazy) +
+  labs(
+    title = "Relacja powierzchni do ceny w zależności od warunków transakcji",
+    x = "Powierzchnia mieszkalna nad ziemią (m²)",
+    y = "Cena sprzedaży"
+  )  +
+  theme(
+    strip.background = element_rect(fill = "gray90", color = "white"),
+    strip.text = element_text(face = "bold", color = "black", size = 10)
+  )
+  
+```
+
+Na powyższych wykresach widać, że domy o dużej powierzchni i niskiej cenie należą do transakcji dotyczących domów częściowo ukończonych - ich niska cena nie wynika z ceny rynkowej. Ze względu na ten nietypowy charakter należy usunąć ze zbioru odstające obserwacje.
+
+```{r}
+data %>%
+  select(pow_mieszkalna_naziemna, cena_sprzedazy, warunki_sprzedazy) %>%
+  arrange(desc(pow_mieszkalna_naziemna)) %>%
+  head(7) %>%
+  tabela(col.names = c("Powierzchnia", "Cena", "Warunki sprzedaży"))
+```
+
+Największą wartością powierzchni, która wydaje się nie zaburzać obserwacji, może być nieruchomość o powierzchni 354.89m^2^. Jest to zgodne z rekomendacją autora danych AmesHousing, który zaleca usunąć wszystkie wartości o powierzchni większej od ok. 370 m^2^.
+
+```{r}
+data %>%
+  select(pow_mieszkalna_naziemna, cena_sprzedazy, warunki_sprzedazy) %>%
+  arrange(cena_sprzedazy) %>%
+  head(7) %>%
+  tabela(col.names = c("Powierzchnia", "Cena", "Warunki sprzedaży"))
+```
+
+Jeśli chodzi o nieruchomości najtańsze - transakcje również są nietypowe, dlatego usuniemy transakcje dotyczące stosunkowo dużych nieruchomości po bardzo niskiej cenie, czyli tych o cenie niższej od 35 000 USD.
+
+## Usunięcie nieruchomości zaburzających statystyki
+```{r}
+stats_before <- psych::describe(data$cena_sprzedazy) %>%
+  as.data.frame() %>%
+  mutate(Stan = "Przed czyszczeniem")
+
+data_cleaned <- data %>% 
+  filter(pow_mieszkalna_naziemna < 360, cena_sprzedazy >= 35000 )
+
+stats_after <- psych::describe(data_cleaned$cena_sprzedazy) %>%
+  as.data.frame() %>%
+  mutate(Stan = "Po czyszczeniu")
+
+bind_rows(stats_before, stats_after) %>%
+  select(Stan, n, mean, median, max, skew, kurtosis) %>%
+  tabela(
+    digits = 2, 
+    caption = "Wpływ usunięcia wartości skrajnych na statystyki ceny",
+    col.names = c("Stan", "N", "Średnia", "Mediana", "Max", "Skośność", "Kurtoza"),
+    row.names = FALSE
+  )
+```
+
+Porównanie statystyk przed i po usunięciu danych uzasadnia podjętą decyzję. Ogromny spadek kurtozy sugeruje, że skutecznie pozbyto się obserwacji, które rozciągały rozkład i zaburzały odchylenie standardowe. Mimo usunięcia największych nieruchomości, mediana nie zmieniła się, a średnia spadła nieznacznie. Spadek skośności sugeruje, że rozkład stał się bardziej zbliżony do normalnego.
+
+# Czy lokalizacja istotnie wpływa na cenę?
+
+Analiza wykresu zależności między powierzchnią a ceną pozwoliła na zauważenie faktu, że rozrzut obserwacji wokół linii trendu rośnie wraz ze wzrostem powierzchni nadziemnej, zatem o cenie końcowej decydują inne czynniki (nie sam metraż).
+
+Sprawdźmy jak poziom cen różni się między dzielnicami.
+
+```{r, fig.height=10, fig.width=10}
+data %>%
+  group_by(dzielnica) %>%
+  summarise(mediana_ceny = median(cena_sprzedazy)) %>%
+  ungroup() %>%
+  mutate(dzielnica = fct_reorder(dzielnica, mediana_ceny)) %>%
+  ggplot(aes(x = mediana_ceny, y = dzielnica)) +
+  geom_segment(aes(x = 0, xend = mediana_ceny, y = dzielnica, yend = dzielnica), 
+               color = "grey80", linewidth = 0.8) +
+  geom_point(color = "coral4", size = 4) +
+  scale_x_continuous(
+    labels = scales::dollar_format(), 
+    expand = expansion(mult = c(0, 0.1))) +
+  labs(
+    title = "Ranking dzielnic wg mediany cen nieruchomości",
+    x = "Mediana ceny sprzedaży",
+    y = NULL
+  ) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(face = "bold", size = 9),
+    axis.ticks.y = element_blank()
+  )
+```
+Rozkład median cen w poszczególnych dzielnicach ujawnia podział rynku na cztery kategorie cenowe: 
+
+1. Segment budżetowy: od Meadow Village do Mitchell, najliczniejsza grupa dzielnic, obejmująca zakres cenowy od poniżej \$100 000 do trochę powyżej $150 000. 
+Najtańsza i jednocześnie jedyna dzielnica z medianą ceny poniżej $100 000 to Meadow Village. Różnice w medianach cen występujących kolejno w grupie dzielnic są stosunkowo niewielkie. Jednak pomiędzy tą grupą, a kolejną występuje wyraźny skok cenowy.
+
+2. Segment średni: od Sawyer West do Crawford, grupa dzielnic obejmująca najwęższy zakres cen, od ok. \$180 000 do \$200 000. Niewielkie różnice między dzielnicami sugerują, że jest to ustandaryzowany segment rynku o zbliżonym standardzie.
+
+3. Segment drogi: od Somerset do Veenker, mediany cen tych trzech dzielnic nie przekraczają 250 000 USD, między tym segmentem a poprzednim i następnym, również występuje skok cenowy, o podobnej wysokości.
+
+4. Segment premium: od Green Hills do Stone Brooks, w tym segmencie między trzema pierwszymi dzielnicami występuje duża różnica poziomu cen, natomiast w przypadku dwóch najdroższych dzielnic - ta różnica jest niewielka.
+
+# Jakie są różnice między nieruchomościami w poszczególnych segmentach?
+
+**Przypisanie segmentu do każdej dzielnicy**
+```{r}
+budget_nbhd <- c("Meadow Village", "Briardale", "Iowa DOT and Rail Road", "Old Town",
+                "Edwards", "Brookside", "Blueste", "Sawyer", "South and West of Iowa State University",
+                "Landmark", "North Ames", "Northpark Villa", "Mitchell")
+
+avg_nbhd <- c("Sawyer West", "Northwest Ames", "Gilbert", "Bloomington Heights",
+              "Clear Creek", "Greens", "College Creek", "Crawford")
+
+exp_nbhd <- c("Somerset", "Timberland", "Veenker")
+
+premium_nbhd <- c("Green Hills", "Northridge", "Northridge Heights", "Stone Brook")
+
+data <- data %>%
+  mutate(segment = case_when(
+    dzielnica %in% budget_nbhd ~ "Budżetowy",
+    dzielnica %in% avg_nbhd ~ "Średni",
+    dzielnica %in% exp_nbhd ~ "Drogi",
+    dzielnica %in% premium_nbhd ~ "Premium"
+  )) %>%
+  mutate(segment = factor(segment, levels = c("Budżetowy", "Średni", "Drogi", "Premium")))
+```
+
+## Struktura zabudowy - Czy poszczególne dzielnice znacząco różnią się strukturą zabudowy? Czy w droższych dzielnicach dominują domy wolnostojące, a w dzielnicach tańszych - domy szeregowe?
+
+```{r, fig.height=10, fig.width=8, fig.align="center"}
+data %>%
+  group_by(dzielnica) %>%
+  mutate(mediana_ceny= median(cena_sprzedazy, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(dzielnica = fct_reorder(dzielnica, desc(mediana_ceny))) %>%
+  count(segment, dzielnica, typ_zabudowy) %>%
+  mutate(typ_zabudowy = str_wrap(typ_zabudowy, width = 10)) %>%
+  ggplot(aes(x = typ_zabudowy, y = dzielnica, fill = n)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = n), color = "white", size = 3, fontface = "bold") +
+  scale_fill_gradient(
+    low = "skyblue",
+    high = "midnightblue",
+    trans = "log1p",
+    breaks = c(1, 10, 50, 200, 400),
+    name = "Liczba transakcji"
+  ) +
+  scale_x_discrete(position = "top") +
+  facet_grid(segment ~ ., scales = "free_y", space = "free_y") +
+  labs(
+    title = "Struktura zabudowy w dzielnicach",
+    subtitle = "Sortowanie według mediany ceny",
+    x = NULL,
+    y = NULL
+  ) +
+  theme(
+    legend.position = "bottom",
+    legend.key.width = unit(2, "cm"),
+    axis.text.x = element_text(face = "bold"),
+    panel.grid = element_blank(),
+    strip.background = element_rect(fill = "gray90", color = "white"),
+    strip.text = element_text(face = "bold", color = "black", size = 10)
+  )
+```
+
+*Z powodu bardzo dużych różnic między ilością sprzedanych domów jednorodzinnych a innymi typami nieruchomości na wykresie zastosowałem skalę logarytmiczną* 
+
+Niezależnie od klasy cenowej, domy jednorodzinne dominują na rynku nieruchomości w Ames. Są one zdecydowaną większością w dzielnicach takich jak North Ames (segment budżetowy), College Creek (segment średni), Somerset (segment drogi) czy Northridge Heights (segment premium). Wskazuje to na typowo podmiejski charakter miasta. 
+
+Zabudowa szeregowa, która zazwyczaj kojarzy się jako tańsza alternatywa dla domów wolnostojących, w Ames występuje w specyficzny sposób – jest popularna w najtańszych i najdroższych segmentach, a zanika w środku:
+
+a) W segmencie budżetowym, w dzielnicach takich jak Meadow Village czy Briardale, transakcje dotyczą wyłącznie zabudowy szeregowej. Pełni tu ona swoją tradycyjną funkcję – najtańszej opcji.
+
+b) W segmencie średnim domy szeregowe stanowią zdecydowaną mniejszość – kupujący w tej cenie wyraźnie preferują domy wolnostojące. Wyjątkiem jest Bloomington Heights, gdzie szeregówki dominują. Sugeruje to, że w segmencie średnim nie są one rozsiane, ale tworzą dedykowane, zamknięte osiedla.
+
+c) W segmencie drogim wyróżnia się dzielnica Somerset, gdzie szeregówki stanowią aż 1/3 wszystkich transakcji.
+
+b) W segmencie premium (np. Stone Brook, Northridge Heights) udział tego typu zabudowy nadal jest bardzo wysoki, przecząc stereotypowi taniego budownictwa. Prawdopodobnie są to nowoczesne apartamenty, które oferują wysoki standard i prestiżową lokalizację dla zamożniejszych klientów.
+
+## Rok budowy - Czy segment premium oznacza budynki nowe, a segment budżetowy - stare?
+
+```{r, fig.height=10, fig.width=10, fig.align="center"}
+data %>%
+  group_by(dzielnica) %>%
+  mutate(mediana_ceny = median(cena_sprzedazy)) %>%
+  ungroup() %>%
+  mutate(dzielnica = fct_reorder(dzielnica, mediana_ceny)) %>%
+  ggplot(aes(x = rok_budowy, y = dzielnica, fill = segment)) +
+  geom_boxplot(alpha = 0.6, outlier.size = 0.5) +
+  scale_fill_manual(values = c("Budżetowy" = "green3", "Średni" = "dodgerblue", "Drogi" = "purple3", "Premium" = "darkorange2")) +
+  scale_x_continuous(breaks = seq(1880, 2010, by = 20)) +
+  labs(
+    title = "Wiek zabudowy a cena nieruchomości",
+    subtitle = "Rozkład roku budowy w podziale na dzielnice (posortowane wg ceny rosnąco)",
+    x = "Rok budowy",
+    y = NULL,
+    fill = "Segment cenowy"
+  ) +
+  theme(
+    legend.position = "top",
+    axis.text.y = element_text(face = "bold"),
+    panel.grid.major.y = element_line(color = "gray90")
+  )
+
+data %>%
+  group_by(dzielnica) %>%
+  mutate(mediana_ceny = median(cena_sprzedazy)) %>%
+  ungroup() %>%
+  mutate(dzielnica = fct_reorder(dzielnica, mediana_ceny)) %>%
+  ggplot(aes(x = rok_budowy, y = dzielnica, color = segment)) +
+  geom_jitter(alpha = 0.3, size = 2, height = 0.2) +
+  scale_x_continuous(breaks = seq(1880, 2010, by = 20)) +
+  scale_color_manual(values = c("Budżetowy" = "green3", "Średni" = "dodgerblue", "Drogi" = "purple3", "Premium" = "darkorange2")) +
+  facet_wrap(~typ_zabudowy, ncol = 2) +
+  labs(
+    title = "Wiek zabudowy a cena nieruchomości",
+    subtitle = "Rozkład w podziale na typy budynków",
+    x = "Rok budowy",
+    y = NULL,
+    color = "Segment cenowy"
+  ) +
+  theme(
+    legend.position = "bottom",
+    legend.box = "vertical",
+    axis.text.y = element_text(face = "bold", size = 8),
+    panel.grid.major.y = element_line(color = "gray90"),
+    strip.background = element_rect(fill = "gray90", color = "white"),
+    strip.text = element_text(face = "bold", color = "black", size = 10)
+  )
+```
+
+Analiza rozkładu lat budowy wewnątrz poszczególnych segmentów ujawnia, że każdy z nich (Budżetowy, Średni, Drogi, Premium) oferuje zupełnie inny typ nieruchomości pod względem wieku i historii:
+
+Analiza rozkładu lat budowy wewnątrz poszczególnych segmentów ujawnia, że rynek nieruchomości w Ames jest silnie skorelowany z czasem powstania budynku, jednak ta reguła posiada kluczowe wyjątki wynikające ze specyfiki poszczególnych dzielnic. '
+
+1) Segment budżetowy - najbardziej zróżnicowany:
+
+  a) najstarsze dzielnice miasta, gdzie mediana roku budowy przypada na lata 1920–1940, ale najstarsze nieruchomości powstały jeszcze w XIX wieku Obecność domów dwurodzinnych i bliźniaków, które są rzadko spotykane, może wskazywać, że starsze domy zostały podzielone na mniejsze i tańsze lokale.
+  
+  b) dzielnice o zabudowie szeregowej, wybudowane w wąskim przedziale czasowym (lata 70. XX wieku), które stanowią one obecnie grupę nieruchomości o najniższej cenie rynkowej.
+  
+  c) obszary zdominowane przez starszą zabudowę jednorodzinną, której realizacja przypada głównie na okres powojenny (przed 1980 r.).
+ 
+2) Segment średni
+
+  a) dzielnice z lat 90. o dominacji zabudowy jednorodzinnej, w przypadku których wyższa wycena rynkowa wynika prawdopodobnie bezpośrednio z młodszego wieku budynków.
+  
+  b) anomalią jest dzielnica Crawford, której rozkład wiekowy jest zbliżony do obszarów z segmentu budżetowego przy jednoczesnym braku nowych inwestycji.
+  
+  c) Bloomington Heights stanowi przykład nowszego budownictwa szeregowego, odróżniającego się standardem od starszych odpowiedników.
+  
+3) Segment drogi
+ 
+ a) dzielnica Somerset, w której znajdują sie niemal wyłącznie nieruchomości wybudowane w XXI wieku. Znaczący udział w strukturze dzielnicy mają nowoczesne domy szeregowe.
+ 
+ b) Veenker to obszar domów jednorodzinnych z lat 80., który mimo dawnego roku budowy, utrzymuje wysoką wartość rynkową, co sugeruje istnienie innych unikalnych cech podnoszących wartość tych nieruchomości.
+ 
+4) Segment premium
+
+  a) są to najmłodsze dzielnice w zestawieniu, co potwierdza, że w najwyższym przedziale cenowym kluczową determinantą wartości jest wiek nieruchomości.
+
+
+
+
