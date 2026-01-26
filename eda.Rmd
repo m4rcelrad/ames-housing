@@ -180,17 +180,18 @@ data %>%
 8. **rok_modernizacji**: Należy pamiętać o definicji zmiennej - jeśli dom nie był remontowany, wpisywana jest data budowy. Fakt, że mediana roku remontu (1993) jest o 20 lat wyższa od mediany roku budowy (1973), wskazuje, że znaczna część starszych budynków przeszła modernizację.
 
 9. **miesiac_sprzedazy**: Średnia oraz mediana wskazują na czerwiec jako szczyt aktywności rynkowej. Niska skośność sugeruje, że rozkład jest symetryczny. Ujemna kurtoza wskazuje, że szczyt ilości transakcji, nie jest skupiony w jednym miesiącu. Można przypuszczać że wysoka liczba transakcji występuje przez parę miesięcy w połowie roku, a ich liczba spada jesienią w podobny sposób w jaki wzrasta wiosną. Te przypuszczenia potwierdza poniższy wykres:
-```{r out.width="60%", fig.align="center"}
-data %>%
-  mutate(miesiac_sprzedazy = as.factor(miesiac_sprzedazy)) %>%
-  ggplot(aes(x = miesiac_sprzedazy)) +
-  geom_bar(fill = "darkslateblue", color = "white") +
-  labs(
-    title = "Liczba sprzedanych nieruchomości w poszczególnych miesiącach",
-    x = "Miesiąc",
-    y = "Liczba transakcji"
-  )
-```
+    ```{r out.width="60%", fig.align="center"}
+    data %>%
+      mutate(miesiac_sprzedazy = as.factor(miesiac_sprzedazy)) %>%
+      ggplot(aes(x = miesiac_sprzedazy)) +
+      geom_bar(fill = "darkslateblue", color = "white") +
+      labs(
+        title = "Sezonowość transakcji",
+        subtitle = "Liczba sprzedanych nieruchomości w poszczególnych miesiącach",
+        x = "Miesiąc",
+        y = "Liczba transakcji"
+      )
+    ```
 10. **pelne_lazienki**: zmienna o małej liczbie unikalnych wartości (zakres 0-4), charakteryzuje się niskim odchyleniem standardowym. Średnia 1.57 przy medianie 2.00 sugeruje, że standardem są domy z 1-2 łazienkami, a nieruchomości z 3 lub 4 łazienkami są relatywnie rzadkie, ale występują.
 
 # Analiza zmiennych kategorycznych
@@ -225,6 +226,8 @@ data %>%
 
 Dane wskazują na bardzo silną koncentrację rynku w dzielnicy North Ames, która z wynikiem 443 transakcji jest zdecydowanym liderem, niemal dwukrotnie przewyższającym drugie w zestawieniu College Creek. Na końcu zestawienia znajduje się wiele dzielnic o bardzo małej liczbie transakcji, co może sugerować, że są to obszary bardzo małe, ekskluzywne lub o niskiej płynności obrotu nieruchomościami.
 
+Szczególnymi przypadkami są dzielnice Landmark i Green Hills, odnotowano w nich odpowiednio jedną i dwie transakcje, co uniemożliwia wyznaczenie wiarygodnych statystyk, dlatego powinny zostać wyłączone z dalszych analiz.
+
 ```{r}
 data %>% 
   count(warunki_sprzedazy) %>%
@@ -233,14 +236,15 @@ data %>%
 
 Zdecydowana większość transakcji w zbiorze odbyła się na standardowych warunkach rynkowych. Obecność kategorii innych niż "Normalna" sugeruje, że niektóre ceny nieruchomości mogą znacząco zniekształcone.
 
-# Rozkład zmiennej objaśnianej - ceny
+# Rozkład zmiennej objaśnianej -- ceny
 ```{r}
 data %>%
   ggplot(aes(x = cena_sprzedazy)) +
   geom_histogram(bins = 30, fill = "navy", color = "white") +
   scale_x_continuous(labels = scales::dollar_format()) +
   labs(
-    title = "Rozkład cen sprzedaży nieruchomości",
+    title = "Struktura cen rynkowych",
+    subtitle = "Rozkład cen sprzedaży nieruchomości w Ames",
     x = "Cena sprzedaży ($)",
     y = "Liczba domów"
   )
@@ -274,8 +278,9 @@ data %>%
   geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "black") +
   scale_y_continuous(labels = scales::dollar_format()) +
   labs(
-    title = "Związek między powierzchnią a ceną sprzedaży",
-    x = "Powierzchnia nad ziemią (m²)",
+    title = "Relacja ceny do powierzchni",
+    subtitle = "Zależność ceny sprzedaży od powierzchni mieszkalnej nad ziemią",
+    x = "Powierzchnia nad ziemią (m2)",
     y = "Cena sprzedaży"
   )
 ```
@@ -287,7 +292,7 @@ Widać również, że rozproszenie punktów względem linii trendu nie jest jedn
 Najważniejsze anomalie widać w dolnym prawym rogu wykresu: są to nieruchomości, które mimo bardzo dużego metraży mają relatywnie niskie ceny. Odstają od rynkowego trendu, co może wskazywać na ich nietypowość. 
 Obserwacje w górnym prawym rogu, czyli o wysokiej cenie i dużej powierzchni, mogą nie być anomaliami, a reprezentować nieruchomości luksusowe.
 
-```{r}
+```{r, fig.width=10}
 data %>%
   ggplot(aes(x = pow_mieszkalna_naziemna, y = cena_sprzedazy)) +
   geom_point(color = "lightsalmon", alpha = 0.5, size = 1.2) +
@@ -295,15 +300,15 @@ data %>%
   scale_y_continuous(labels = scales::dollar_format()) +
   facet_wrap(~warunki_sprzedazy) +
   labs(
-    title = "Relacja powierzchni do ceny w zależności od warunków transakcji",
-    x = "Powierzchnia mieszkalna nad ziemią (m²)",
+    title = "Relacja ceny do powierzchni a typ transakcji",
+    subtitle = "Zależność w podziale na warunki sprzedaży",
+    x = "Powierzchnia mieszkalna nad ziemią (m2)",
     y = "Cena sprzedaży"
   )  +
   theme(
     strip.background = element_rect(fill = "gray90", color = "white"),
     strip.text = element_text(face = "bold", color = "black", size = 10)
   )
-  
 ```
 
 Na powyższych wykresach widać, że domy o dużej powierzchni i niskiej cenie należą do transakcji dotyczących domów częściowo ukończonych - ich niska cena nie wynika z ceny rynkowej. Ze względu na ten nietypowy charakter należy usunąć ze zbioru odstające obserwacje.
@@ -328,16 +333,24 @@ data %>%
 
 Jeśli chodzi o nieruchomości najtańsze - transakcje również są nietypowe, dlatego usuniemy transakcje dotyczące stosunkowo dużych nieruchomości po bardzo niskiej cenie, czyli tych o cenie niższej od 35 000 USD.
 
-## Usunięcie nieruchomości zaburzających statystyki
+# Usunięcie nieruchomości zaburzających statystyki
+
+Usuwamy ze zbioru obserwaje, które dotyczą:
+
+1. Nieruchomości o powierzchni powyżej 360 m^2^.
+
+2. Transakcje o cenie poniżej 35 000 USD.
+
+3. Dzielnice Landmark i Green Hills, zawierające za małą liczbę obserwacji.
 ```{r}
 stats_before <- psych::describe(data$cena_sprzedazy) %>%
   as.data.frame() %>%
   mutate(Stan = "Przed czyszczeniem")
 
-data_cleaned <- data %>% 
-  filter(pow_mieszkalna_naziemna < 360, cena_sprzedazy >= 35000 )
+data <- data %>% 
+  filter(pow_mieszkalna_naziemna < 360, cena_sprzedazy >= 35000, !dzielnica %in% c("Landmark", "Green Hills") )
 
-stats_after <- psych::describe(data_cleaned$cena_sprzedazy) %>%
+stats_after <- psych::describe(data$cena_sprzedazy) %>%
   as.data.frame() %>%
   mutate(Stan = "Po czyszczeniu")
 
@@ -359,7 +372,7 @@ Analiza wykresu zależności między powierzchnią a ceną pozwoliła na zauważ
 
 Sprawdźmy jak poziom cen różni się między dzielnicami.
 
-```{r, fig.height=10, fig.width=10}
+```{r, fig.height=10, fig.width=9}
 data %>%
   group_by(dzielnica) %>%
   summarise(mediana_ceny = median(cena_sprzedazy)) %>%
@@ -373,7 +386,8 @@ data %>%
     labels = scales::dollar_format(), 
     expand = expansion(mult = c(0, 0.1))) +
   labs(
-    title = "Ranking dzielnic wg mediany cen nieruchomości",
+    title = "Hierarchia cenowa dzielnic",
+    subtitle = "Mediana ceny sprzedaży w poszczególnych lokalizacjach",
     x = "Mediana ceny sprzedaży",
     y = NULL
   ) +
@@ -385,14 +399,14 @@ data %>%
 ```
 Rozkład median cen w poszczególnych dzielnicach ujawnia podział rynku na cztery kategorie cenowe: 
 
-1. Segment budżetowy: od Meadow Village do Mitchell, najliczniejsza grupa dzielnic, obejmująca zakres cenowy od poniżej \$100 000 do trochę powyżej $150 000. 
-Najtańsza i jednocześnie jedyna dzielnica z medianą ceny poniżej $100 000 to Meadow Village. Różnice w medianach cen występujących kolejno w grupie dzielnic są stosunkowo niewielkie. Jednak pomiędzy tą grupą, a kolejną występuje wyraźny skok cenowy.
+1. Segment budżetowy: od Meadow Village do Mitchell, najliczniejsza grupa dzielnic, obejmująca zakres cenowy od poniżej 100 000 USD do trochę powyżej 150 000 USD. 
+Najtańsza i jednocześnie jedyna dzielnica z medianą ceny poniżej 100 000 USD to Meadow Village. Wzrost cen między kolejnymi dzielnicami w tej grupie jest łagodny,  jednak na końcu grupy następuje pierwszy wyraźny próg cenowy oddzielający ją od segmentu średniego.
 
-2. Segment średni: od Sawyer West do Crawford, grupa dzielnic obejmująca najwęższy zakres cen, od ok. \$180 000 do \$200 000. Niewielkie różnice między dzielnicami sugerują, że jest to ustandaryzowany segment rynku o zbliżonym standardzie.
+2. Segment średni: od Sawyer West do Crawford, grupa dzielnic obejmująca najwęższy zakres cen, od ok. 180 000 USD do 200 000 USD. Niewielkie różnice między dzielnicami sugerują, że jest to ustandaryzowany segment rynku o zbliżonym standardzie nieruchomości.
 
-3. Segment drogi: od Somerset do Veenker, mediany cen tych trzech dzielnic nie przekraczają 250 000 USD, między tym segmentem a poprzednim i następnym, również występuje skok cenowy, o podobnej wysokości.
+3. Segment drogi: od Somerset do Veenker, mediany cen tych trzech dzielnic mieszczą się w przedziale 220 000 USD – 250 000 USD. Choć są wyraźnie droższe od średniej rynkowej, wciąż zachowują ciągłość cenową. Między najdroższą dzielnicą tego segmentu (Veenker), a kolejną grupą, występuje ogromna różnica w cenie.
 
-4. Segment premium: od Green Hills do Stone Brooks, w tym segmencie między trzema pierwszymi dzielnicami występuje duża różnica poziomu cen, natomiast w przypadku dwóch najdroższych dzielnic - ta różnica jest niewielka.
+4. Segment premium: od Northridge do Stone Brooks, obserwujemy najbardziej drastyczny skok cenowy na całym wykresie. Różnica mediany między Veenker, a Northridge wynosi ponad 50 000 USD. Wszystkie dzielnice w tej grupie przekraczają barierę 300 000 USD, co wyraźnie izoluje je od reszty miasta jako elitarne enklawy o zupełnie innym standardzie lub prestiżu.
 
 # Jakie są różnice między nieruchomościami w poszczególnych segmentach?
 
@@ -400,14 +414,14 @@ Najtańsza i jednocześnie jedyna dzielnica z medianą ceny poniżej $100 000 to
 ```{r}
 budget_nbhd <- c("Meadow Village", "Briardale", "Iowa DOT and Rail Road", "Old Town",
                 "Edwards", "Brookside", "Blueste", "Sawyer", "South and West of Iowa State University",
-                "Landmark", "North Ames", "Northpark Villa", "Mitchell")
+                "North Ames", "Northpark Villa", "Mitchell")
 
 avg_nbhd <- c("Sawyer West", "Northwest Ames", "Gilbert", "Bloomington Heights",
               "Clear Creek", "Greens", "College Creek", "Crawford")
 
 exp_nbhd <- c("Somerset", "Timberland", "Veenker")
 
-premium_nbhd <- c("Green Hills", "Northridge", "Northridge Heights", "Stone Brook")
+premium_nbhd <- c("Northridge", "Northridge Heights", "Stone Brook")
 
 data <- data %>%
   mutate(segment = case_when(
@@ -416,16 +430,16 @@ data <- data %>%
     dzielnica %in% exp_nbhd ~ "Drogi",
     dzielnica %in% premium_nbhd ~ "Premium"
   )) %>%
-  mutate(segment = factor(segment, levels = c("Budżetowy", "Średni", "Drogi", "Premium")))
-```
-
-## Struktura zabudowy - Czy poszczególne dzielnice znacząco różnią się strukturą zabudowy? Czy w droższych dzielnicach dominują domy wolnostojące, a w dzielnicach tańszych - domy szeregowe?
-
-```{r, fig.height=10, fig.width=8, fig.align="center"}
-data %>%
+  mutate(segment = factor(segment, levels = c("Budżetowy", "Średni", "Drogi", "Premium"))) %>%
   group_by(dzielnica) %>%
   mutate(mediana_ceny= median(cena_sprzedazy, na.rm = TRUE)) %>%
-  ungroup() %>%
+  ungroup()
+```
+
+## Struktura zabudowy -- Czy poszczególne dzielnice znacząco różnią się strukturą zabudowy?
+
+```{r, fig.height=8, fig.width=8, fig.align="center"}
+data %>%
   mutate(dzielnica = fct_reorder(dzielnica, desc(mediana_ceny))) %>%
   count(segment, dzielnica, typ_zabudowy) %>%
   mutate(typ_zabudowy = str_wrap(typ_zabudowy, width = 10)) %>%
@@ -443,7 +457,7 @@ data %>%
   facet_grid(segment ~ ., scales = "free_y", space = "free_y") +
   labs(
     title = "Struktura zabudowy w dzielnicach",
-    subtitle = "Sortowanie według mediany ceny",
+    subtitle = "Liczba transakcji w podziale na dzielnice i rodzaje budynków",
     x = NULL,
     y = NULL
   ) +
@@ -459,32 +473,29 @@ data %>%
 
 *Z powodu bardzo dużych różnic między ilością sprzedanych domów jednorodzinnych a innymi typami nieruchomości na wykresie zastosowałem skalę logarytmiczną* 
 
-Niezależnie od klasy cenowej, domy jednorodzinne dominują na rynku nieruchomości w Ames. Są one zdecydowaną większością w dzielnicach takich jak North Ames (segment budżetowy), College Creek (segment średni), Somerset (segment drogi) czy Northridge Heights (segment premium). Wskazuje to na typowo podmiejski charakter miasta. 
+Niezależnie od klasy cenowej, domy jednorodzinne dominują na rynku nieruchomości w Ames. Są one zdecydowaną większością w dzielnicach takich jak North Ames (segment budżetowy), College Creek (segment średni), Somerset (segment drogi) czy Northridge Heights (segment premium). Wskazuje to na typowo podmiejski charakter miasta.
 
 Zabudowa szeregowa, która zazwyczaj kojarzy się jako tańsza alternatywa dla domów wolnostojących, w Ames występuje w specyficzny sposób – jest popularna w najtańszych i najdroższych segmentach, a zanika w środku:
 
-a) W segmencie budżetowym, w dzielnicach takich jak Meadow Village czy Briardale, transakcje dotyczą wyłącznie zabudowy szeregowej. Pełni tu ona swoją tradycyjną funkcję – najtańszej opcji.
+A. W segmencie budżetowym zabudowa szeregowa występuje w dzielnicach takich jak Meadow Village, Briardale, Northpark Villa czy Blueste, transakcje dotyczą wyłącznie tego typu nieruchomości. Pełnią tu one swoją tradycyjną funkcję – najtańszej opcji mieszkaniowej.
 
-b) W segmencie średnim domy szeregowe stanowią zdecydowaną mniejszość – kupujący w tej cenie wyraźnie preferują domy wolnostojące. Wyjątkiem jest Bloomington Heights, gdzie szeregówki dominują. Sugeruje to, że w segmencie średnim nie są one rozsiane, ale tworzą dedykowane, zamknięte osiedla.
+B. W segmencie średnim domy szeregowe stanowią mniejszość – kupujący wyraźnie preferują domy wolnostojące. Wyjątkiem jest Bloomington Heights, gdzie szeregówki dominują (oraz w mniejszym stopniu Greens). Sugeruje to, że w segmencie średnim nie są one rozproszone, ale tworzą dedykowane, zamknięte osiedla.
 
-c) W segmencie drogim wyróżnia się dzielnica Somerset, gdzie szeregówki stanowią aż 1/3 wszystkich transakcji.
+C. W segmencie drogim wyróżnia się dzielnica Somerset, gdzie szeregówki stanowią aż 1/3 wszystkich transakcji, współistniejąc z domami jednorodzinnymi.
 
-b) W segmencie premium (np. Stone Brook, Northridge Heights) udział tego typu zabudowy nadal jest bardzo wysoki, przecząc stereotypowi taniego budownictwa. Prawdopodobnie są to nowoczesne apartamenty, które oferują wysoki standard i prestiżową lokalizację dla zamożniejszych klientów.
+D. W segmencie premium udział tego typu zabudowy jest zaskakująco wysoki, co przeczy stereotypowi taniego budownictwa. W dzielnicy Stone Brook stanowią one niemal połowę transakcji. Prawdopodobnie są to nowoczesne lokale, które oferują wysoki standard i prestiżową lokalizację dla zamożniejszych klientów, którzy nie chcą zajmować się utrzymaniem dużej działki.
 
-## Rok budowy - Czy segment premium oznacza budynki nowe, a segment budżetowy - stare?
+## Rok budowy -- Czy segment premium oznacza budynki nowe, a segment budżetowy -- stare?
 
 ```{r, fig.height=10, fig.width=10, fig.align="center"}
 data %>%
-  group_by(dzielnica) %>%
-  mutate(mediana_ceny = median(cena_sprzedazy)) %>%
-  ungroup() %>%
   mutate(dzielnica = fct_reorder(dzielnica, mediana_ceny)) %>%
   ggplot(aes(x = rok_budowy, y = dzielnica, fill = segment)) +
   geom_boxplot(alpha = 0.6, outlier.size = 0.5) +
   scale_fill_manual(values = c("Budżetowy" = "green3", "Średni" = "dodgerblue", "Drogi" = "purple3", "Premium" = "darkorange2")) +
   scale_x_continuous(breaks = seq(1880, 2010, by = 20)) +
   labs(
-    title = "Wiek zabudowy a cena nieruchomości",
+    title = "Wiek zabudowy a lokalizacja",
     subtitle = "Rozkład roku budowy w podziale na dzielnice (posortowane wg ceny rosnąco)",
     x = "Rok budowy",
     y = NULL,
@@ -497,9 +508,6 @@ data %>%
   )
 
 data %>%
-  group_by(dzielnica) %>%
-  mutate(mediana_ceny = median(cena_sprzedazy)) %>%
-  ungroup() %>%
   mutate(dzielnica = fct_reorder(dzielnica, mediana_ceny)) %>%
   ggplot(aes(x = rok_budowy, y = dzielnica, color = segment)) +
   geom_jitter(alpha = 0.3, size = 2, height = 0.2) +
@@ -507,14 +515,14 @@ data %>%
   scale_color_manual(values = c("Budżetowy" = "green3", "Średni" = "dodgerblue", "Drogi" = "purple3", "Premium" = "darkorange2")) +
   facet_wrap(~typ_zabudowy, ncol = 2) +
   labs(
-    title = "Wiek zabudowy a cena nieruchomości",
+    title = "Wiek zabudowy a typ budynku",
     subtitle = "Rozkład w podziale na typy budynków",
     x = "Rok budowy",
     y = NULL,
     color = "Segment cenowy"
   ) +
   theme(
-    legend.position = "bottom",
+    legend.position = "top",
     legend.box = "vertical",
     axis.text.y = element_text(face = "bold", size = 8),
     panel.grid.major.y = element_line(color = "gray90"),
@@ -523,36 +531,233 @@ data %>%
   )
 ```
 
-Analiza rozkładu lat budowy wewnątrz poszczególnych segmentów ujawnia, że każdy z nich (Budżetowy, Średni, Drogi, Premium) oferuje zupełnie inny typ nieruchomości pod względem wieku i historii:
+Analiza rozkładu lat budowy wewnątrz poszczególnych segmentów ujawnia, że rynek nieruchomości w Ames jest silnie skorelowany z czasem powstania budynku, jednak ta reguła posiada kluczowe wyjątki wynikające ze specyfiki poszczególnych dzielnic.
 
-Analiza rozkładu lat budowy wewnątrz poszczególnych segmentów ujawnia, że rynek nieruchomości w Ames jest silnie skorelowany z czasem powstania budynku, jednak ta reguła posiada kluczowe wyjątki wynikające ze specyfiki poszczególnych dzielnic. '
+1. Segment budżetowy
 
-1) Segment budżetowy - najbardziej zróżnicowany:
-
-  a) najstarsze dzielnice miasta, gdzie mediana roku budowy przypada na lata 1920–1940, ale najstarsze nieruchomości powstały jeszcze w XIX wieku Obecność domów dwurodzinnych i bliźniaków, które są rzadko spotykane, może wskazywać, że starsze domy zostały podzielone na mniejsze i tańsze lokale.
+    A. Najstarsze dzielnice miasta (np. Old Town, Edwards), których mediana roku budowy przypada na lata 1920–1940, ale najstarsze nieruchomości powstały jeszcze w XIX wieku. Wysoka obecność domów dwurodzinnych i bliźniaków (szczególnie w Old Town) może wskazywać, że duże, historyczne domy zostały z czasem podzielone na mniejsze i tańsze lokale mieszkalne.
   
-  b) dzielnice o zabudowie szeregowej, wybudowane w wąskim przedziale czasowym (lata 70. XX wieku), które stanowią one obecnie grupę nieruchomości o najniższej cenie rynkowej.
+    B. Dzielnice o zabudowie szeregowej z lat 70. (Meadow Village, Briardale), które zostały wybudowane w bardzo wąskim przedziale czasowym (ok. 1970–1980). Stanowią jednorodną grupę nieruchomości, które oferują najniższą cenę.
   
-  c) obszary zdominowane przez starszą zabudowę jednorodzinną, której realizacja przypada głównie na okres powojenny (przed 1980 r.).
+    C. Obszary zdominowane przez domy wybudowane w okresie powojennym (lata 50.-70.), np. North Ames, stanowiące znaczą część taniego mieszkalnictwa jednorodzinnego.
  
-2) Segment średni
+2. Segment średni
 
-  a) dzielnice z lat 90. o dominacji zabudowy jednorodzinnej, w przypadku których wyższa wycena rynkowa wynika prawdopodobnie bezpośrednio z młodszego wieku budynków.
+    A. Dzielnice z lat 90. (np. Gilbert, Sawyer West, w których dominuje zabudowa jednorodzinnej, gdzie wyższa wycena rynkowa wynika prawdopodobnie bezpośrednio z młodszego wieku budynków (o ok. 20-30 lat względem North Ames).
   
-  b) anomalią jest dzielnica Crawford, której rozkład wiekowy jest zbliżony do obszarów z segmentu budżetowego przy jednoczesnym braku nowych inwestycji.
+    B. Anomalią jest dzielnica Crawford, której rozkład wiekowy jest zbliżony do obszarów z segmentu budżetowego przy jednoczesnym braku nowych inwestycji. Mimo wieku nieruchomości utrzymują ceny segmentu średniego, co sugeruje ich lepszy stan techniczny, większy metraż lub unikalny charakter architektoniczny.
   
-  c) Bloomington Heights stanowi przykład nowszego budownictwa szeregowego, odróżniającego się standardem od starszych odpowiedników.
+    C. Bloomington Heights stanowi przykład nowszego budownictwa szeregowego, które standardem i ceną odróżnia się od starszych odpowiedników z lat 70.
   
-3) Segment drogi
+3. Segment drogi
  
- a) dzielnica Somerset, w której znajdują sie niemal wyłącznie nieruchomości wybudowane w XXI wieku. Znaczący udział w strukturze dzielnicy mają nowoczesne domy szeregowe.
+    A. Dzielnica Somerset, w której znajdują się niemal wyłącznie nieruchomości wybudowane w XXI wieku. Znaczący udział w strukturze dzielnicy mają nowoczesne domy szeregowe.
  
- b) Veenker to obszar domów jednorodzinnych z lat 80., który mimo dawnego roku budowy, utrzymuje wysoką wartość rynkową, co sugeruje istnienie innych unikalnych cech podnoszących wartość tych nieruchomości.
+    B. Veenker to obszar domów jednorodzinnych z lat 70. i 80., który mimo dawnego roku budowy, utrzymuje wysoką wartość rynkową, co sugeruje istnienie innych unikalnych cech podnoszących wartość tych nieruchomości.
  
-4) Segment premium
+4. Segment premium
 
-  a) są to najmłodsze dzielnice w zestawieniu, co potwierdza, że w najwyższym przedziale cenowym kluczową determinantą wartości jest wiek nieruchomości.
+    A. Northridge Heights i Stone Brook to najnowsze dzielnice w zestawieniu, co potwierdza, że w najwyższym przedziale cenowym kluczową determinantą wartości jest nowoczesność. W Stone Brook luksusowe szeregówki stanowią niemal połowę oferty.
+  
+    B. Wyjątkiem jest dzielnica Northridge, która mimo starszej zabudowy (lata 90.) niż tańsze Somerset, ma ceny nieruchomości umieszczające ją w najdroższym segmencie. Wskazuje to, że w przypadku najbardziej ekskluzywnych nieruchomości wiek schodzi na drugi plan, a o cenie decyduje m.in. prestiż osiedla oraz metraż rezydencji.
+  
+## Jak nieruchomości różnią się metrażem w poszczególnych dzielnicach?
 
+```{r, fig.height=8, fig.width=10, fig.align="center"}
+data %>%
+  mutate(dzielnica = fct_reorder(dzielnica, mediana_ceny)) %>%
+  ggplot(aes(x = pow_mieszkalna_naziemna, y = dzielnica, fill = segment)) +
+  geom_boxplot(alpha = 0.6, outlier.size = 0.5) +
+  scale_fill_manual(values = c("Budżetowy" = "green3", "Średni" = "dodgerblue", "Drogi" = "purple3", "Premium" = "darkorange2")) +
+  scale_x_continuous(breaks = seq(50, 350, by = 50)) +
+  labs(
+    title = "Zróżnicowanie metrażu nieruchomości",
+    subtitle = "Rozkład powierzchni mieszkalnej w podziale na dzielnice i segmenty cenowe",
+    x = "Powierzchnia mieszkalna nadziemna (m2)",
+    y = NULL,
+    fill = "Segment cenowy"
+  ) +
+  theme(
+    legend.position = "top",
+    axis.text.y = element_text(face = "bold", size = 8),
+    panel.grid.major.y = element_line(color = "gray90")
+  )
+```
+Wykres pokazuje, że kolejność dzielnic pod względem ceny, nie pokrywa się idealnie z kolejnością pod względem wielkości naziemnej nieruchomości.
 
+1. W segmencie budżetowym znajdują się nieruchomości o bardzo zróżnicowanej powierzchni:
 
+    A. Dzielnica Meadow Village charakteryzuje się najniższą medianą powierzchni w całym mieście oraz niską zmiennością. Potwierdza to jej charakter jako osiedla taniej zabudowy szeregowej o powtarzalnym standardzie.
+  
+    B. Dzielnice takie jak Old Town czy Edwards prezentują parametry zbliżone do wyższych segmentów. Mediana metrażu jest tu wyraźnie wyższa, a górne wartości skrajne przekraczają 200 m^2^. Niska wycena tych nieruchomości nie wynika zatem z braku przestrzeni, lecz prawdopodobnie z ich wieku i stanu technicznego.
+  
+2. W segmencie średnim większość dzielnic (np. Gilbert, Sawyer West, Northwest Ames) nieruchomości są do siebie zbliżone metrażem. Mediana powierzchni w tych dzielnicach znajduje się w przedziale 140 - 160 m^2^, co może sugerować standard rynkowy.
 
+    A. Widać dlaczego dzielnica Crawford, mimo wieku budynków, znajduje się w segmencie średnim, a nie budżetowym - dzielnica wyróżnia się wyższą medianą powierzchni. Występuje tu też bardzo duży rozrzut wartości, niektóre nieruchomości mają bardzo dużą powierzchnię, ale wiek budynku obniża ich cenę. 
+    
+    B. Dzielnica Greens, która składa się z domów szeregowych wybudowanych w bardzo wąskim zakresie czasu, charakteryzuje się nieruchomościami o bardzo podobnym metrażu.
+  
+3. W segmencie drogim budynki nie charakteryzują się znacznie większym metrażem od segmentu średniego: metraż nie jest tu kluczowym determinantem ceny - jest nim tu wiek budynku
+
+    A. W Somerset i Timberland rozkłady powierzchni nie różnią się znacznie od tych w segmencie średnim, jest to dowód na to, że nabywcy są skłonni zapłacić więcej za nowsze budynki.
+ 
+    B. W Veenker występują domy większe od tych w dwóch pozostałych dzielnicach tego segmentu, ale ich wiek sprawia, że przynależą do tego segmentu, a nie segmentu premium.
+ 
+4. W segmencie premium występuje wyraźny skok w metrażu, ale struktura dzielnic wykazuje pewne różnice:
+ 
+    A. Dzielnica Northridge zdecydowanie dominuje pod względem wielkości nieruchomości. Jej mediana powierzchni jest wyraźnie przesunięta w prawo względem reszty stawki, a dolny kwartyl zaczyna się tam, gdzie kończą się mediany niższych segmentów. Oznacza to, że jest to obszar najbardziej elitarny pod względem przestrzeni – standardem są tu wielkie rezydencje.
+ 
+    B. Dzielnice Northridge Heights i Stone Brook prezentują bardzo podobny rozkład powierzchni. Obie charakteryzują się szerokim zakresem dostępnych metraży, co wyjaśnia fakt, że znajdują się tu zarówno domy szeregowe jak i domy jednorodzinne.
+    
+## Czy garaż jest standardem w każdym segmencie?
+
+```{r}
+data %>%
+  ggplot(aes(x = pow_garazu, y = segment, fill = segment)) +
+  geom_boxplot(alpha = 0.6, outlier.size = 0.5) +
+  scale_fill_manual(values = c("Budżetowy" = "green3", "Średni" = "dodgerblue", "Drogi" = "purple3", "Premium" = "darkorange2")) +
+  scale_x_continuous(
+    labels = scales::comma_format(suffix = " m2"), 
+    breaks = seq(0, 200, by = 25) 
+  ) +
+  labs(
+    title = "Powierzchnia garażu a segment cenowy",
+    subtitle = "Rozkład powierzchni garażowej w podziale na grupy cenowe",
+    x = "Powierzchnia garażu",
+    y = NULL,
+    fill = "Segment cenowy"
+  ) +
+  theme(
+    legend.position = "none",
+    axis.text.y = element_text(face = "bold", size = 10),
+    panel.grid.major.y = element_line(color = "gray90")
+  )
+```
+Analiza rozkładu powierzchni garażowej w podziale na segmenty cenowe ujawnia wyraźne różnice standardów rynkowych w poszczególnych segmentach:
+
+1. Segment budżetowy to jedyna grupa, w której dolny wąs wykresu osiąga wartość 0 m^2^. Brak garażu jest w tym segmencie zjawiskiem rynkowo akceptowalnym i nie stanowi anomalii. Mediana wynosząca ok. 30–35 m² wskazuje, że dominującym standardem jest tu nieduży garaż mieszczący jeden samochód. Nieruchomości z większymi garażami stanowią w tej grupie margines.
+
+2. W segmencie średnim mediana wzrasta do ok. 45 m^2^, co odpowiada typowemu garażowi dwustanowiskowemu. Wąs dolny kończy się wyraźnie powyżej zera, w tej klasie cenowej garaż staje się obligatoryjny, a standard jednego stanowiska zmienia się na dwa stanowiska.
+
+3. W segmencie drogim rozkład jest wyraźnie przesunięty w prawą stronę względem segmentu średniego. Mediana wynosi powyżej 50 m^2^, a dolny kwartyl jest wyraźnie wyższy niż w segmencie średnim, nieruchomości bez garażu nie występują. Oznacza to, że w tym segmencie rzadziej spotyka się małe garaże dwustanowiskowe, a częściej przestronne garaże na dwa samochody z dodatkową dodatkową powierzchnię gospodarczą. 
+
+4. Segment premium wyróżnia się najwyższą medianą (ok. 70 m^2^) -- standardem są garaże trzystanowiskowych. W segmencie premium praktycznie nie występują garaże mniejsze niż 40 m^2^.
+
+# Analiza porównawcza zabudowy szeregowej
+```{r}
+szeregowe <- data %>%
+  filter(typ_zabudowy == "Szeregowa")
+
+szeregowe %>%
+  group_by(segment) %>%
+  summarise(
+    Liczba_transakcji = n(),
+    Srednia_cena = mean(cena_sprzedazy),
+    Srednia_pow_calkowita = mean(pow_calkowita, na.rm = TRUE),
+    Srednia_pow_dzialki = mean(pow_dzialki, na.rm = TRUE),
+    Srednia_liczba_lazienek = mean(pelne_lazienki),
+    Mediana_roku = median(rok_budowy)
+  ) %>%
+  tabela(
+    digits = 0,
+    caption = "Porównanie parametrów domów szeregowych w segmentach cenowych",
+    col.names = c(
+      "Segment",
+      "Liczba transakcji",
+      "Średnia cena",
+      "Średnia powierzchnia całkowita", 
+      "Średnia powierzchnia działki",
+      "Średnia liczba łazienek",
+      "Mediana roku budowy"
+    )
+  )
+  
+```
+
+Tabela zestawiająca średnie parametry domów szeregowych w czterech segmentach cenowych pokazuje nieoczywiste relacje między ceną a oferowanym standardem:
+
+1. W segmencie budżetowym występuje najwięcej transakcji,charakteryzuje się on wyraźnie najniższym standardem: mała powierzchnia całkowita, niewielkie działki oraz obecność tylko jednej pełnej łazienki. Mediana roku budowy (1975) wskazuje, że są to osiedla z najstarsze domy szeregowe z zestawienia.
+
+2. W segmencie średnim i drogim następuje wyraźne podwyższenie standardu (standardem stają się 2 łazienki, a budynki są nowsze o blisko 30 lat). Porównanie tych dwóch grup ujawnia jednak anomalię: szeregówki w segmencie drogim są mają mniejszy metraż i mniejsze działki. Mimo to osiągają wyższe ceny. Wskazuje to, że w tym segmencie o wartości decyduje prestiż lokalizacji, za który klienci są skłonni zapłacić więcej, rezygnując z części metrażu.
+
+3. W segmencie premium statystyki budynków są wyraźnie wyższe: w szczególności metraż działki. Są to również nieruchomości najnowsze (mediana 2005). Liczba łazienek pozostaje na poziomie 2, co sugeruje, że jest to standard wystarczający nawet dla luksusowej zabudowy szeregowej, a o wyższej cenie decyduje przede wszystkim przestrzeń i nowoczesność.
+
+## Jaka jakość wykończenia dominuje w poszczególnych segmentach?
+
+```{r, fig.height=8, fig.width=10, fig.align="center"}
+library(stringr) 
+
+szeregowe %>%
+  mutate(jakosc_ogolna = fct_relevel(jakosc_ogolna, 
+    "Bardzo słaba", "Słaba", "Dostateczna", "Poniżej średniej", 
+    "Średnia", "Powyżej średniej", "Dobra", 
+    "Bardzo dobra", "Doskonała", "Wybitna")) %>%
+  ggplot(aes(x = jakosc_ogolna, fill = segment)) +
+  geom_bar(color = "white", alpha = 0.6, show.legend = FALSE) + 
+  scale_x_discrete(
+    drop = FALSE, 
+    labels = function(x) str_wrap(x, width = 10)
+  ) + 
+  scale_fill_manual(values = c("Budżetowy" = "green3", "Średni" = "dodgerblue", "Drogi" = "purple3", "Premium" = "darkorange2")) +
+  facet_wrap(~segment, ncol = 1, scales = "free_y") +
+  labs(
+    title = "Rozkład jakości wykończenia w segmentach",
+    subtitle = "Liczba domów szeregowych o danej jakości w podziale na segmenty cenowe",
+    x = NULL,
+    y = "Liczba domów"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 0.5, face = "bold", size = 9),
+    axis.text.y = element_text(face = "bold", size = 8),
+    panel.grid.major.x = element_blank(),
+    strip.background = element_rect(fill = "gray90", color = "white"),
+    strip.text = element_text(face = "bold", color = "black", size = 10)
+  )
+```
+
+Analiza wykresu potwierdza istnienie wyraźnej zależności między segmentem cenowym a jakością wykończenia w zabudowie szeregowej. Dominanta rozkładu przesuwa się wyraźnie w kierunku wyższych ocen wraz ze wzrostem ceny nieruchomości:
+
+1. W segmencie budżetowym rozkład jest silnie skoncentrowany wokół jednej wartości – jakości "Średniej", która stanowi zdecydowaną większość obserwacji. Nieruchomości o standardzie "Dobra" lub wyższym stanowią w tej grupie margines, co sugeruje, że w najtańszych dzielnicach wyższy standard wykończenia występuje nieczęsto, rzadziej niż nieruchomości o jakości gorszej niż "Średnia.
+
+2. W segmencie średnim rozkład jest bardziej spłaszczony. Nie ma jednej, zdecydowanie dominującej kategorii. Największy udział w strukturze mają nieruchomości o jakości „Powyżej średniej”, ale ich liczba jest zbliżona to tych o jakości „Dobra” oraz "Bardzo dobra".
+
+3. W segmencie drogim dominantą staje się jakość „Dobra”, która stanowi najliczniejszą grupę obserwacji. W porównaniu do niższego segmentu, spada udział nieruchomości o jakości „Powyżej średniej” na rzecz tych ocenianych jako „Bardzo dobra” i wyższa. Struktura ta sugeruje, że w tej klasie cenowej standardem rynkowym jest wysoka jakość wykończenia, a nieruchomości o niższych parametrach stanowią mniejszość.
+
+4. W segmencie premium nie ma obserwacji poniżej jakości "Powyżej średniej". Dominują tu nieruchomości o standardzie "Bardzo dobra" i "Doskonała". Oznacza to, że wysoka jakość wykończenia jest standardem dla najdroższych lokalizacji, a nieruchomości o jakości przeciętnej w tym segmencie nie występują.
+
+## Rozkład powierzchni działki w zabudowie szeregowej
+```{r, fig.height=10, fig.width=11, fig.align="center"}
+szeregowe %>%
+  filter(pow_dzialki > 0) %>%
+  ggplot(aes(x = pow_dzialki, fill = segment)) +
+  geom_density(alpha = 0.6, color = "white") +
+  scale_fill_manual(values = c("Budżetowy" = "green3", "Średni" = "dodgerblue", "Drogi" = "purple3", "Premium" = "darkorange2")) +
+  facet_wrap(~segment, ncol = 1) + 
+  coord_cartesian(xlim = c(0, 1200)) +
+  scale_x_continuous(labels = scales::comma_format(suffix = " m2")) +
+  labs(
+    title = "Powierzchnia działki a segment cenowy",
+    subtitle = "Rozkład gęstości powierzchni gruntu w podziale na segmenty cenowe",
+    x = "Powierzchnia działki",
+    y = "Gęstość"
+  ) +
+  theme(
+    legend.position = "none",
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    strip.background = element_rect(fill = "gray90", color = "white"),
+    strip.text = element_text(face = "bold", color = "black", size = 8),
+    plot.margin = margin(t = 10, r = 20, b = 10, l = 10, unit = "pt")
+  )
+```
+
+Wykres gęstości powierzchni działek przy zabudowie szeregowej ujawnia ogromne różnice w strukturze gruntów przynależnych do nieruchomości w poszczególnych segmentach cenowych:
+
+1. W segmencie budżetowym rozkład jest najbardziej jednorodny, z wyraźną dominantą w wąskim przedziale 150–200 m^2^. Brak większych działek wskazuje na masowe budownictwo o sztywnym standardzie, co pokrywa się z faktem budowy osiedli w latach 70., gdzie grunt jest traktowany jako koszt niezbędny do postawienia budynku, a nie atut podnoszący jego wartość. 
+
+2 . Rozkład dla segmentu średniego jest znacznie szerszy. Jest tu istotna grupa nieruchomości z działkami w przedziale 300–400 m^2^. Oznacza to, że w tej klasie cenowej powierzchnia gruntu jest nadal istotnym czynnikiem wartości. W tym segmencie występują też nieruchomości o znacząco większych działkach. 
+
+3. Rozkład w segmencie drogim jest przesunięty w lewo względem segmentu średniego. Wyższa cena nieruchomości nie wynika tu z wielkości gruntu. Zamożniejsi kupujący rezygnują z dużej działki na rzecz lepszego adresu i lepiej wykonanego domu. 
+
+4. W segmencie premium rozkład jest najbardziej spłaszczony i rozciągnięty, co świadczy o braku standaryzacji. Występuje tu najwyższa wariancja powierzchni działek. Wskazuje to na indywidualny charakter każdej oferty w tym segmencie, gdzie wielkość gruntu nie podlega rynkowym schematom typowym dla tańszych osiedli.
