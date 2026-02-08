@@ -210,6 +210,19 @@ data %>%
         subtitle = "Liczba sprzedanych nieruchomości w poszczególnych miesiącach",
         x = "Miesiąc",
         y = "Liczba transakcji"
+      ) + 
+      theme(
+        plot.title.position = "plot",
+        plot.caption.position = "plot",
+  
+        plot.title = element_text(size = 20, face = "bold", color = "grey0", margin = margin(b = 10) ),
+        plot.subtitle = element_text( size = 12, color = "grey40", margin = margin(b = 25) ),
+  
+        axis.title.x = element_text(size = 12, color = "grey15", margin = margin(t = 15)),
+        axis.title.y = element_text(size = 12, color = "grey15", margin = margin(r = 15)),
+        axis.text = element_text(size = 10, color = "grey50"),
+
+        plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
       )
     ```
 
@@ -261,7 +274,7 @@ Zdecydowana większość transakcji w zbiorze odbyła się na standardowych waru
 
 # Rozkład zmiennej objaśnianej - ceny
 
-```{r, fig.align="center"}
+```{r, fig.width=9, fig.height=5, fig.align="center"}
 data %>%
   ggplot(aes(x = cena_sprzedazy)) +
   geom_histogram(bins = 30, fill = "navy", color = "white") +
@@ -271,6 +284,19 @@ data %>%
     subtitle = "Rozkład cen sprzedaży nieruchomości w Ames",
     x = "Cena sprzedaży ($)",
     y = "Liczba domów"
+  ) +
+  theme(
+    plot.title.position = "plot",
+    plot.caption.position = "plot",
+  
+    plot.title = element_text(size = 20, face = "bold", color = "grey0", margin = margin(b = 10) ),
+    plot.subtitle = element_text( size = 12, color = "grey40", margin = margin(b = 25) ),
+  
+    axis.title.x = element_text(size = 12, color = "grey15", margin = margin(t = 15)),
+    axis.title.y = element_text(size = 12, color = "grey15", margin = margin(r = 15)),
+    axis.text = element_text(size = 10, color = "grey50"),
+
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
   )
 
 data$cena_sprzedazy %>%
@@ -295,7 +321,7 @@ Cena maksymalna stanowi ponad 350% wartości trzeciego kwartyla, może to oznacz
 
 # Analiza wartości skrajnych
 
-```{r, fig.align="center"}
+```{r, fig.width=9, fig.height=7, fig.align="center"}
 data %>%
   ggplot(aes(x = pow_mieszkalna_naziemna, y = cena_sprzedazy)) +
   geom_point(color = "saddlebrown", alpha = 0.5) +
@@ -306,6 +332,19 @@ data %>%
     subtitle = "Zależność ceny sprzedaży od powierzchni mieszkalnej nad ziemią",
     x = "Powierzchnia nad ziemią (m2)",
     y = "Cena sprzedaży"
+  ) + 
+  theme(
+    plot.title.position = "plot",
+    plot.caption.position = "plot",
+  
+    plot.title = element_text(size = 20, face = "bold", color = "grey0", margin = margin(b = 10) ),
+    plot.subtitle = element_text( size = 12, color = "grey40", margin = margin(b = 25) ),
+  
+    axis.title.x = element_text(size = 12, color = "grey15", margin = margin(t = 15)),
+    axis.title.y = element_text(size = 12, color = "grey15", margin = margin(r = 15)),
+    axis.text = element_text(size = 10, color = "grey50"),
+
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
   )
 ```
 
@@ -315,11 +354,10 @@ Widać również, że rozproszenie punktów względem linii trendu nie jest jedn
 
 Najważniejsze anomalie widać w dolnym prawym rogu wykresu: są to nieruchomości, które mimo bardzo dużego metrażu mają relatywnie niskie ceny. Odstają od rynkowego trendu, co może wskazywać na ich nietypowość. Obserwacje w górnym prawym rogu, czyli o wysokiej cenie i dużej powierzchni, mogą nie być anomaliami, a reprezentować nieruchomości luksusowe.
 
-```{r, fig.width=10, fig.height= 8, fig.align="center"}
+```{r, fig.width=10, fig.height=7, fig.align="center"}
 data %>%
   ggplot(aes(x = pow_mieszkalna_naziemna, y = cena_sprzedazy)) +
   geom_point(color = "saddlebrown", alpha = 0.3, size = 1.2) +
-  geom_smooth(method = "lm", formula = y ~ x, color = "black", linewidth = 0.4, se = FALSE) +
   scale_y_continuous(labels = scales::dollar_format()) +
   facet_wrap(~warunki_sprzedazy) +
   labs(
@@ -331,6 +369,18 @@ data %>%
   theme(
     strip.background = element_rect(fill = "gray90", color = "white"),
     strip.text = element_text(face = "bold", color = "black", size = 10),
+    
+    plot.title.position = "plot",
+    plot.caption.position = "plot",
+  
+    plot.title = element_text(size = 20, face = "bold", color = "grey0", margin = margin(b = 10) ),
+    plot.subtitle = element_text( size = 12, color = "grey40", margin = margin(b = 25) ),
+  
+    axis.title.x = element_text(size = 12, color = "grey15", margin = margin(t = 15)),
+    axis.title.y = element_text(size = 12, color = "grey15", margin = margin(r = 15)),
+    axis.text = element_text(size = 10, color = "grey50"),
+
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
   )
 ```
 
@@ -396,7 +446,7 @@ Analiza wykresu zależności między powierzchnią a ceną pozwoliła na zauważ
 
 Sprawdźmy jak poziom cen różni się między dzielnicami.
 
-```{r, fig.height=10, fig.width=9, fig.align="center"}
+```{r, fig.height=9, fig.width=10, fig.align="center"}
 data %>%
   group_by(dzielnica) %>%
   summarise(mediana_ceny = median(cena_sprzedazy)) %>%
@@ -414,6 +464,19 @@ data %>%
     subtitle = "Mediana ceny sprzedaży w poszczególnych lokalizacjach",
     x = "Mediana ceny sprzedaży",
     y = NULL
+  ) +
+  theme(
+    plot.title.position = "plot",
+    plot.caption.position = "plot",
+  
+    plot.title = element_text(size = 20, face = "bold", color = "grey0", margin = margin(b = 10) ),
+    plot.subtitle = element_text( size = 12, color = "grey40", margin = margin(b = 25) ),
+  
+    axis.title.x = element_text(size = 12, color = "grey15", margin = margin(t = 15)),
+    axis.title.y = element_text(size = 12, color = "grey15", margin = margin(r = 15)),
+    axis.text = element_text(size = 10, color = "grey50"),
+
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
   )
 ```
 
@@ -460,7 +523,7 @@ data <- data %>%
 
 Rozwój miast w USA znacząco rożni się od rozwoju miast europejskich mających początki wieki temu. Ames, które powstało w 1869 roku, prawdopodobnie również jest przykładem rozwoju strefami, w których zabudowa jest jednorodna. Poniższa analiza zweryfikuje, czy w Ames ten schemat jest widoczny i czy najtańsze dzielnice to skupiska budżetowych domów szeregowych, które kontrastują z wolnostojącą zabudową w droższych strefach.
 
-```{r, fig.height=8, fig.width=8, fig.align="center"}
+```{r, fig.height=12, fig.width=10, fig.align="center"}
 data %>%
   mutate(dzielnica = fct_reorder(dzielnica, desc(mediana_ceny))) %>%
   count(segment, dzielnica, typ_zabudowy) %>%
@@ -488,7 +551,19 @@ data %>%
     legend.key.width = unit(2, "cm"),
     panel.grid = element_blank(),
     strip.background = element_rect(fill = "gray90", color = "white"),
-    strip.text = element_text(face = "bold", color = "black", size = 10)
+    strip.text = element_text(face = "bold", color = "black", size = 10),
+    
+    plot.title.position = "plot",
+    plot.caption.position = "plot",
+  
+    plot.title = element_text(size = 20, face = "bold", color = "grey0", margin = margin(b = 10) ),
+    plot.subtitle = element_text( size = 12, color = "grey40", margin = margin(b = 25) ),
+  
+    axis.title.x = element_text(size = 12, color = "grey15", margin = margin(t = 15)),
+    axis.title.y = element_text(size = 12, color = "grey15", margin = margin(r = 15)),
+    axis.text = element_text(size = 10, color = "grey50"),
+
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
   )
 ```
 
@@ -526,6 +601,18 @@ data %>%
   ) +
   theme(
     legend.position = "top",
+    
+    plot.title.position = "plot",
+    plot.caption.position = "plot",
+  
+    plot.title = element_text(size = 20, face = "bold", color = "grey0", margin = margin(b = 10) ),
+    plot.subtitle = element_text( size = 12, color = "grey40", margin = margin(b = 25) ),
+  
+    axis.title.x = element_text(size = 12, color = "grey15", margin = margin(t = 15)),
+    axis.title.y = element_text(size = 12, color = "grey15", margin = margin(r = 15)),
+    axis.text = element_text(size = 10, color = "grey50"),
+
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
   )
 
 data %>%
@@ -545,7 +632,19 @@ data %>%
   theme(
     legend.position = "top",
     strip.background = element_rect(fill = "gray90", color = "white"),
-    strip.text = element_text(face = "bold", color = "black", size = 10)
+    strip.text = element_text(face = "bold", color = "black", size = 10),
+    
+    plot.title.position = "plot",
+    plot.caption.position = "plot",
+  
+    plot.title = element_text(size = 20, face = "bold", color = "grey0", margin = margin(b = 10) ),
+    plot.subtitle = element_text( size = 12, color = "grey40", margin = margin(b = 25) ),
+  
+    axis.title.x = element_text(size = 12, color = "grey15", margin = margin(t = 15)),
+    axis.title.y = element_text(size = 12, color = "grey15", margin = margin(r = 15)),
+    axis.text = element_text(size = 10, color = "grey50"),
+
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
   )
 ```
 
@@ -601,6 +700,18 @@ data %>%
   ) +
   theme(
     legend.position = "top",
+    
+    plot.title.position = "plot",
+    plot.caption.position = "plot",
+  
+    plot.title = element_text(size = 20, face = "bold", color = "grey0", margin = margin(b = 10) ),
+    plot.subtitle = element_text( size = 12, color = "grey40", margin = margin(b = 25) ),
+  
+    axis.title.x = element_text(size = 12, color = "grey15", margin = margin(t = 15)),
+    axis.title.y = element_text(size = 12, color = "grey15", margin = margin(r = 15)),
+    axis.text = element_text(size = 10, color = "grey50"),
+
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
   )
 ```
 
@@ -652,6 +763,18 @@ data %>%
   ) +
   theme(
     legend.position = "none",
+    
+    plot.title.position = "plot",
+    plot.caption.position = "plot",
+  
+    plot.title = element_text(size = 20, face = "bold", color = "grey0", margin = margin(b = 10) ),
+    plot.subtitle = element_text( size = 12, color = "grey40", margin = margin(b = 25) ),
+  
+    axis.title.x = element_text(size = 12, color = "grey15", margin = margin(t = 15)),
+    axis.title.y = element_text(size = 12, color = "grey15", margin = margin(r = 15)),
+    axis.text = element_text(size = 10, color = "grey50"),
+
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
   )
 ```
 
@@ -709,7 +832,7 @@ Tabela zestawiająca średnie parametry domów szeregowych w czterech segmentach
 
 ## Jaka jakość wykończenia dominuje w poszczególnych segmentach?
 
-```{r, fig.height=8, fig.width=10, fig.align="center"}
+```{r, fig.height=9, fig.width=10, fig.align="center"}
 szeregowe %>%
   mutate(jakosc_ogolna = fct_relevel(jakosc_ogolna, 
     "Bardzo słaba", "Słaba", "Dostateczna", "Poniżej średniej", 
@@ -732,7 +855,19 @@ szeregowe %>%
   theme(
     panel.grid.major.x = element_blank(),
     strip.background = element_rect(fill = "gray90", color = "white"),
-    strip.text = element_text(face = "bold", color = "black", size = 10)
+    strip.text = element_text(face = "bold", color = "black", size = 10),
+    
+    plot.title.position = "plot",
+    plot.caption.position = "plot",
+  
+    plot.title = element_text(size = 20, face = "bold", color = "grey0", margin = margin(b = 10) ),
+    plot.subtitle = element_text( size = 12, color = "grey40", margin = margin(b = 25) ),
+  
+    axis.title.x = element_text(size = 12, color = "grey15", margin = margin(t = 15)),
+    axis.title.y = element_text(size = 12, color = "grey15", margin = margin(r = 15)),
+    axis.text = element_text(size = 10, color = "grey50"),
+
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
   )
 ```
 
@@ -769,6 +904,18 @@ szeregowe %>%
     panel.grid.minor = element_blank(),
     strip.background = element_rect(fill = "gray90", color = "white"),
     strip.text = element_text(face = "bold", color = "black", size = 10),
+    
+    plot.title.position = "plot",
+    plot.caption.position = "plot",
+  
+    plot.title = element_text(size = 20, face = "bold", color = "grey0", margin = margin(b = 10) ),
+    plot.subtitle = element_text( size = 12, color = "grey40", margin = margin(b = 25) ),
+  
+    axis.title.x = element_text(size = 12, color = "grey15", margin = margin(t = 15)),
+    axis.title.y = element_text(size = 12, color = "grey15", margin = margin(r = 15)),
+    axis.text = element_text(size = 10, color = "grey50"),
+
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
   )
 ```
 
@@ -784,7 +931,7 @@ Wykres gęstości powierzchni działek przy zabudowie szeregowej pokazuje ogromn
 
 ## Co różni luksusowe szeregówki od luksusowych domów wolnostojących?
 
-```{r}
+```{r, fig.height=7, fig.width=10, fig.align='center'}
 data %>%
   filter(segment %in% c("Drogi", "Premium")) %>%
   filter(typ_zabudowy %in% c("Jednorodzinna", "Szeregowa")) %>% 
@@ -803,7 +950,19 @@ data %>%
   theme(
     legend.position = "top",
     strip.background = element_rect(fill = "gray90", color = "white"),
-    strip.text = element_text(face = "bold", color = "black", size = 10) 
+    strip.text = element_text(face = "bold", color = "black", size = 10),
+    
+    plot.title.position = "plot",
+    plot.caption.position = "plot",
+  
+    plot.title = element_text(size = 20, face = "bold", color = "grey0", margin = margin(b = 10) ),
+    plot.subtitle = element_text( size = 12, color = "grey40", margin = margin(b = 25) ),
+  
+    axis.title.x = element_text(size = 12, color = "grey15", margin = margin(t = 15)),
+    axis.title.y = element_text(size = 12, color = "grey15", margin = margin(r = 15)),
+    axis.text = element_text(size = 10, color = "grey50"),
+
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
   )
 ```
 
