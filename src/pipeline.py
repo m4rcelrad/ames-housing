@@ -4,7 +4,7 @@ import mlflow.sklearn
 
 from src.data_loader import DataLoader
 from src.evaluator import ModelEvaluator
-from src.model_factory import ModelFactory
+from src.model_factory import ModelFactory, ModelType
 from src.preprocessing import Preprocessor
 from src.trainer import ModelTrainer
 
@@ -33,19 +33,22 @@ class TrainingPipeline:
             preprocessor = self.preprocessor_gen.get_column_transformer(
                 numeric_features, categorical_features
             )
-            trainer = ModelTrainer(preprocessor)
+            trainer = ModelTrainer(preprocessor, random_state=self.config.RANDOM_STATE)
 
-            model = self.factory.get_model("ridge", alpha=1.0)
+            model = self.factory.get_model(ModelType.RIDGE)
             pipeline = trainer.build_pipeline(model, use_log_transform=True)
 
             cv_mean, cv_std = trainer.evaluate_with_cv(pipeline, X_train, y_train)
-            pipeline = trainer.fit(pipeline, X_train, y_train)
+            pipeline.fit(X_train, y_train)
 
             y_pred = pipeline.predict(X_test)
             metrics = self.evaluator.get_metrics(y_test, y_pred)
 
             mlflow.log_metrics({"CV_RMSE_Mean": cv_mean, "CV_RMSE_Std": cv_std, **metrics})
-            self.evaluator.plot_predicted_vs_actual(y_test, y_pred, "reports/pred.png")
+            self.evaluator.plot_predicted_vs_actual(y_test, y_pred, "reports/pred.png", show_plot=False)
             mlflow.log_artifact("reports/pred.png")
+
+            self.evaluator.plot_residuals(y_test, y_pred, "reports/residuals.png", show_plot=False)
+            mlflow.log_artifact("reports/residuals.png")
 
             mlflow.sklearn.log_model(sk_model=pipeline, name="housing_model_pipeline")

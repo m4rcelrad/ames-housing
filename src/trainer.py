@@ -3,12 +3,13 @@ import joblib
 import numpy as np
 from sklearn.pipeline import Pipeline
 from sklearn.compose import TransformedTargetRegressor
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, KFold
 
 
 class ModelTrainer:
-    def __init__(self, preprocessor):
+    def __init__(self, preprocessor, random_state=42):
         self.preprocessor = preprocessor
+        self.random_state = random_state
 
     def build_pipeline(self, model, use_log_transform=True):
         if use_log_transform:
@@ -25,22 +26,21 @@ class ModelTrainer:
             ("regressor", regressor)
         ])
 
-    @staticmethod
-    def evaluate_with_cv(pipeline, X, y, cv=5):
+    def evaluate_with_cv(self, pipeline, X, y, n_splits=5):
+        cv_strategy = KFold(
+            n_splits=n_splits,
+            shuffle=True,
+            random_state=self.random_state
+        )
+
         scores = cross_val_score(
             pipeline, X, y,
             scoring="neg_root_mean_squared_error",
-            cv=cv,
+            cv=cv_strategy,
             n_jobs=-1
         )
-
         rmse_scores = -scores
         return rmse_scores.mean(), rmse_scores.std()
-
-    @staticmethod
-    def fit(pipeline, X, y):
-        pipeline.fit(X, y)
-        return pipeline
 
     @staticmethod
     def save_model(pipeline, path):
