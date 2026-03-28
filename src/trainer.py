@@ -1,7 +1,10 @@
+import os
 import joblib
+import numpy as np
 from sklearn.pipeline import Pipeline
 from sklearn.compose import TransformedTargetRegressor
-import numpy as np
+from sklearn.model_selection import cross_val_score
+
 
 class ModelTrainer:
     def __init__(self, preprocessor):
@@ -22,10 +25,24 @@ class ModelTrainer:
             ("regressor", regressor)
         ])
 
-    def fit(self, pipeline, X, y):
+    @staticmethod
+    def evaluate_with_cv(pipeline, X, y, cv=5):
+        scores = cross_val_score(
+            pipeline, X, y,
+            scoring="neg_root_mean_squared_error",
+            cv=cv,
+            n_jobs=-1
+        )
+
+        rmse_scores = -scores
+        return rmse_scores.mean(), rmse_scores.std()
+
+    @staticmethod
+    def fit(pipeline, X, y):
         pipeline.fit(X, y)
         return pipeline
 
-    def save_model(self, pipeline, path):
+    @staticmethod
+    def save_model(pipeline, path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         joblib.dump(pipeline, path)
-

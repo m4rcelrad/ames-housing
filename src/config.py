@@ -1,6 +1,7 @@
 class Config:
     DATASET_NAME = "house_prices"
     TARGET_COLUMN = "SalePrice"
+    NEIGHBORHOOD_COLUMN = "Neighborhood"
     TEST_SIZE = 0.2
     RANDOM_STATE = 42
 
@@ -12,4 +13,5 @@ class Config:
         "LotArea",
         "GarageArea"
     ]
-    
+
+    REMAINDER_STRATEGY = "passthrough"
