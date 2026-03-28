@@ -3,7 +3,8 @@ import os
 import mlflow.sklearn
 
 from src.data_loader import DataLoader
-from src.evaluator import ModelEvaluator
+from src.metricscalculator import MetricsCalculator
+from src.visualiser import Visaliser
 from src.model_factory import ModelFactory, ModelType
 from src.preprocessing import Preprocessor
 from src.trainer import ModelTrainer
@@ -15,7 +16,8 @@ class TrainingPipeline:
         self.loader = DataLoader(config)
         self.preprocessor_gen = Preprocessor(config)
         self.factory = ModelFactory()
-        self.evaluator = ModelEvaluator()
+        self.metrics_calc = MetricsCalculator()
+        self.visualiser = Visaliser()
 
     def run(self, run_name="Pro_Ridge_Regression"):
         os.makedirs("reports", exist_ok=True)
@@ -42,13 +44,13 @@ class TrainingPipeline:
             pipeline.fit(X_train, y_train)
 
             y_pred = pipeline.predict(X_test)
-            metrics = self.evaluator.get_metrics(y_test, y_pred)
+            metrics = self.metrics_calc.get_metrics(y_test, y_pred)
 
             mlflow.log_metrics({"CV_RMSE_Mean": cv_mean, "CV_RMSE_Std": cv_std, **metrics})
-            self.evaluator.plot_predicted_vs_actual(y_test, y_pred, "reports/pred.png", show_plot=False)
+            self.visualiser.plot_predicted_vs_actual(y_test, y_pred, "reports/pred.png", show_plot=False)
             mlflow.log_artifact("reports/pred.png")
 
-            self.evaluator.plot_residuals(y_test, y_pred, "reports/residuals.png", show_plot=False)
+            self.visualiser.plot_residuals(y_test, y_pred, "reports/residuals.png", show_plot=False)
             mlflow.log_artifact("reports/residuals.png")
 
             mlflow.sklearn.log_model(sk_model=pipeline, name="housing_model_pipeline")
