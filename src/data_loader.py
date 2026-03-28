@@ -15,19 +15,6 @@ class DataLoader:
         )
         return dataset.frame
 
-    def clean_data(self, df):
-        df = df.copy()
-
-        limit_sqft = 360 / self.config.SQFT_TO_SQM_FACTOR
-        df = df[df["GrLivArea"] < limit_sqft]
-
-        df = df[df[self.config.TARGET_COLUMN] >= 35000]
-
-        nb_col = self.config.NEIGHBORHOOD_COLUMN
-        df = df[~df[nb_col].isin(["Landmark", "Green Hills"])]
-
-        return df
-
     def split_data(self, df):
         X = df.drop(columns=[self.config.TARGET_COLUMN])
         y = df[self.config.TARGET_COLUMN]

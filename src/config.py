@@ -15,3 +15,6 @@ class Config:
     ]
 
     REMAINDER_STRATEGY = "passthrough"
+    AREA_LIMIT_SQM = 360
+    MIN_PRICE_THRESHOLD = 35000
+    EXCLUDED_NEIGHBORHOODS = ["Landmark", "Green Hills"]

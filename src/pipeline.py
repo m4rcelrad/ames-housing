@@ -1,9 +1,11 @@
 import os
+from importlib.metadata import version
 
 import mlflow.sklearn
 from mlflow.models import infer_signature
 
 from src.data_loader import DataLoader
+from src.data_cleaner import DataCleaner
 from src.metricscalculator import MetricsCalculator
 from src.model_factory import ModelFactory, ModelType
 from src.preprocessing import Preprocessor
@@ -15,6 +17,7 @@ class TrainingPipeline:
     def __init__(self, config):
         self.config = config
         self.loader = DataLoader(config)
+        self.cleaner = DataCleaner(config)
         self.preprocessor_gen = Preprocessor(config)
         self.factory = ModelFactory()
         self.metrics_calc = MetricsCalculator()
@@ -24,7 +27,11 @@ class TrainingPipeline:
         os.makedirs("reports", exist_ok=True)
 
         raw_df = self.loader.fetch_raw_data()
-        clean_df = self.loader.clean_data(raw_df)
+        clean_df = self.cleaner.clean_data(raw_df)
+
+        for col in clean_df.select_dtypes(include=['int64']).columns:
+            clean_df[col] = clean_df[col].astype('float64')
+
         X_train, X_test, y_train, y_test = self.loader.split_data(clean_df)
 
         numeric_features = X_train.select_dtypes(include=['number']).columns.tolist()
@@ -33,10 +40,17 @@ class TrainingPipeline:
         mlflow.set_experiment("Ames_Housing_Price_Prediction")
 
         with mlflow.start_run(run_name=run_name):
+            mlflow.log_params({
+                "area_limit_sqm": self.config.AREA_LIMIT_SQM,
+                "min_price_threshold": self.config.MIN_PRICE_THRESHOLD,
+                "excluded_neighborhoods": self.config.EXCLUDED_NEIGHBORHOODS,
+                "test_size": self.config.TEST_SIZE,
+                "random_state": self.config.RANDOM_STATE
+            })
             preprocessor = self.preprocessor_gen.get_column_transformer(
                 numeric_features, categorical_features
             )
-            trainer = ModelTrainer(preprocessor)
+            trainer = ModelTrainer(preprocessor, random_state=self.config.RANDOM_STATE)
 
             model = self.factory.get_model(ModelType.RIDGE)
             pipeline = trainer.build_pipeline(model, use_log_transform=True)
@@ -66,5 +80,24 @@ class TrainingPipeline:
 
             signature = infer_signature(X_train, pipeline.predict(X_train))
 
-            mlflow.sklearn.log_model(sk_model=pipeline, name="housing_model_pipeline", serialization_format="skops",
-                                     signature=signature, input_example=X_train.iloc[:5])
+            mlflow.sklearn.log_model(
+                sk_model=pipeline,
+                name="housing_model_pipeline",
+                serialization_format="skops",
+                skops_trusted_types=[
+                    "numpy.dtype",
+                    "src.config.Config",
+                    "src.preprocessing.Preprocessor",
+                    "src.preprocessing._convert_to_sqm"
+                ],
+                pip_requirements=[
+                    f"mlflow=={version('mlflow')}",
+                    f"scikit-learn=={version('scikit-learn')}",
+                    f"skops=={version('skops')}",
+                    f"numpy=={version('numpy')}",
+                    f"pandas=={version('pandas')}",
+                    f"scipy=={version('scipy')}",
+                ],
+                signature=signature,
+                input_example=X_train.iloc[:5],
+            )
