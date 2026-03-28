@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-class Visaliser:
+class Visualiser:
     @staticmethod
     def plot_predicted_vs_actual(y_true, y_pred, output_path=None, show_plot=False):
         plt.figure(figsize=(10, 6))

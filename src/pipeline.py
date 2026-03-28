@@ -1,13 +1,14 @@
 import os
 
 import mlflow.sklearn
+from mlflow.models import infer_signature
 
 from src.data_loader import DataLoader
 from src.metricscalculator import MetricsCalculator
-from src.visualiser import Visaliser
 from src.model_factory import ModelFactory, ModelType
 from src.preprocessing import Preprocessor
 from src.trainer import ModelTrainer
+from src.visualiser import Visualiser
 
 
 class TrainingPipeline:
@@ -17,7 +18,7 @@ class TrainingPipeline:
         self.preprocessor_gen = Preprocessor(config)
         self.factory = ModelFactory()
         self.metrics_calc = MetricsCalculator()
-        self.visualiser = Visaliser()
+        self.visualizer = Visualiser()
 
     def run(self, run_name="Pro_Ridge_Regression"):
         os.makedirs("reports", exist_ok=True)
@@ -35,10 +36,20 @@ class TrainingPipeline:
             preprocessor = self.preprocessor_gen.get_column_transformer(
                 numeric_features, categorical_features
             )
-            trainer = ModelTrainer(preprocessor, random_state=self.config.RANDOM_STATE)
+            trainer = ModelTrainer(preprocessor)
 
             model = self.factory.get_model(ModelType.RIDGE)
             pipeline = trainer.build_pipeline(model, use_log_transform=True)
+
+            mlflow.log_param("features_numeric", numeric_features)
+            mlflow.log_param("features_categorical", categorical_features)
+
+            mlflow.log_params({
+                "dataset_name": self.config.DATASET_NAME,
+                "test_size": self.config.TEST_SIZE,
+                "random_state": self.config.RANDOM_STATE,
+                "sqft_to_sqm_factor": self.config.SQFT_TO_SQM_FACTOR
+            })
 
             cv_mean, cv_std = trainer.evaluate_with_cv(pipeline, X_train, y_train)
             pipeline.fit(X_train, y_train)
@@ -47,10 +58,13 @@ class TrainingPipeline:
             metrics = self.metrics_calc.get_metrics(y_test, y_pred)
 
             mlflow.log_metrics({"CV_RMSE_Mean": cv_mean, "CV_RMSE_Std": cv_std, **metrics})
-            self.visualiser.plot_predicted_vs_actual(y_test, y_pred, "reports/pred.png", show_plot=False)
-            mlflow.log_artifact("reports/pred.png")
 
-            self.visualiser.plot_residuals(y_test, y_pred, "reports/residuals.png", show_plot=False)
+            self.visualizer.plot_predicted_vs_actual(y_test, y_pred, "reports/pred.png")
+            self.visualizer.plot_residuals(y_test, y_pred, "reports/residuals.png")
+            mlflow.log_artifact("reports/pred.png")
             mlflow.log_artifact("reports/residuals.png")
 
-            mlflow.sklearn.log_model(sk_model=pipeline, name="housing_model_pipeline")
+            signature = infer_signature(X_train, pipeline.predict(X_train))
+
+            mlflow.sklearn.log_model(sk_model=pipeline, name="housing_model_pipeline", serialization_format="skops",
+                                     signature=signature, input_example=X_train.iloc[:5])
