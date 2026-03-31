@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 from pandas.io.parsers.readers import TextFileReader
 
+from src.config import Config
 from src.inference_service import get_best_model_uri, load_model, predict_batch, predict_single
 
 st.set_page_config(page_title="Ames Housing Predictor", page_icon="🏠", layout="wide")
@@ -96,8 +97,21 @@ def _batch_prediction_tab(model):
     st.write("Preview of uploaded data")
     st.dataframe(input_df.head(), use_container_width=True)
 
+    missing_columns = [col for col in Config.FEATURES_TO_KEEP if col not in input_df.columns]
+    if missing_columns:
+        st.error("CSV is missing required columns: " + ", ".join(missing_columns))
+        st.info("Upload a CSV with all required feature columns and run prediction again.")
+        return
+
     if st.button("Run Batch Prediction"):
-        output_df = predict_batch(model, input_df)
+        try:
+            output_df = predict_batch(model, input_df)
+        except ValueError as exc:
+            st.error(str(exc))
+            return
+        except Exception as exc:
+            st.error(f"Batch prediction failed: {exc}")
+            return
         st.success(f"Generated {len(output_df)} predictions")
         st.dataframe(output_df.head(), use_container_width=True)
 
