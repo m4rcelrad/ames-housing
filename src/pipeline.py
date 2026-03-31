@@ -1,6 +1,5 @@
-import os
-from importlib.metadata import version
-
+import logging
+from pathlib import Path
 import mlflow.sklearn
 from mlflow.models import infer_signature
 
@@ -11,6 +10,8 @@ from src.model_factory import ModelFactory, ModelType
 from src.preprocessing import Preprocessor
 from src.trainer import ModelTrainer
 from src.visualiser import Visualiser
+
+logger = logging.getLogger(__name__)
 
 
 class TrainingPipeline:
@@ -23,49 +24,39 @@ class TrainingPipeline:
         self.metrics_calc = MetricsCalculator()
         self.visualizer = Visualiser()
 
-    def run(self, run_name="Pro_Ridge_Regression"):
-        os.makedirs("reports", exist_ok=True)
+    def run(self, model_type: ModelType, run_name: str):
 
+        reports_dir = Path("reports")
+        reports_dir.mkdir(exist_ok=True)
+
+        logger.info(f"Initializing data ingestion for model: {model_type.value}")
         raw_df = self.loader.fetch_raw_data()
         clean_df = self.cleaner.clean_data(raw_df)
 
-        for col in clean_df.select_dtypes(include=['int64']).columns:
-            clean_df[col] = clean_df[col].astype('float64')
+        for col in clean_df.select_dtypes(include=["int64", "int32", "int16", "int8"]).columns:
+            clean_df[col] = clean_df[col].astype("float64")
 
         X_train, X_test, y_train, y_test = self.loader.split_data(clean_df)
 
         numeric_features = X_train.select_dtypes(include=['number']).columns.tolist()
         categorical_features = X_train.select_dtypes(include=['object', 'category']).columns.tolist()
 
-        mlflow.set_experiment("Ames_Housing_Price_Prediction")
+        mlflow.set_experiment("Ames_Housing_Tournament")
 
         with mlflow.start_run(run_name=run_name):
-            mlflow.log_params({
-                "area_limit_sqm": self.config.AREA_LIMIT_SQM,
-                "min_price_threshold": self.config.MIN_PRICE_THRESHOLD,
-                "excluded_neighborhoods": self.config.EXCLUDED_NEIGHBORHOODS,
-                "test_size": self.config.TEST_SIZE,
-                "random_state": self.config.RANDOM_STATE
-            })
+            self._log_metadata(model_type, numeric_features, categorical_features)
+
             preprocessor = self.preprocessor_gen.get_column_transformer(
                 numeric_features, categorical_features
             )
             trainer = ModelTrainer(preprocessor, random_state=self.config.RANDOM_STATE)
-
-            model = self.factory.get_model(ModelType.RIDGE)
+            model = self.factory.get_model(model_type)
             pipeline = trainer.build_pipeline(model, use_log_transform=True)
 
-            mlflow.log_param("features_numeric", numeric_features)
-            mlflow.log_param("features_categorical", categorical_features)
-
-            mlflow.log_params({
-                "dataset_name": self.config.DATASET_NAME,
-                "test_size": self.config.TEST_SIZE,
-                "random_state": self.config.RANDOM_STATE,
-                "sqft_to_sqm_factor": self.config.SQFT_TO_SQM_FACTOR
-            })
-
+            logger.info(f"Executing Cross-Validation for {model_type.value}...")
             cv_mean, cv_std = trainer.evaluate_with_cv(pipeline, X_train, y_train)
+
+            logger.info(f"Fitting final pipeline for {model_type.value}...")
             pipeline.fit(X_train, y_train)
 
             y_pred = pipeline.predict(X_test)
@@ -73,31 +64,58 @@ class TrainingPipeline:
 
             mlflow.log_metrics({"CV_RMSE_Mean": cv_mean, "CV_RMSE_Std": cv_std, **metrics})
 
-            self.visualizer.plot_predicted_vs_actual(y_test, y_pred, "reports/pred.png")
-            self.visualizer.plot_residuals(y_test, y_pred, "reports/residuals.png")
-            mlflow.log_artifact("reports/pred.png")
-            mlflow.log_artifact("reports/residuals.png")
+            self._generate_artifacts(y_test, y_pred, model_type, reports_dir)
 
             signature = infer_signature(X_train, pipeline.predict(X_train))
-
             mlflow.sklearn.log_model(
                 sk_model=pipeline,
-                name="housing_model_pipeline",
+                name=f"model_{model_type.value}",
                 serialization_format="skops",
                 skops_trusted_types=[
                     "numpy.dtype",
                     "src.config.Config",
                     "src.preprocessing.Preprocessor",
-                    "src.preprocessing._convert_to_sqm"
-                ],
-                pip_requirements=[
-                    f"mlflow=={version('mlflow')}",
-                    f"scikit-learn=={version('scikit-learn')}",
-                    f"skops=={version('skops')}",
-                    f"numpy=={version('numpy')}",
-                    f"pandas=={version('pandas')}",
-                    f"scipy=={version('scipy')}",
+                    "src.preprocessing._convert_to_sqm",
+                    "sklearn._loss.link.IdentityLink",
+                    "sklearn._loss.link.Interval",
+                    "sklearn._loss.loss.HalfSquaredError",
                 ],
                 signature=signature,
                 input_example=X_train.iloc[:5],
+                pip_requirements=[
+                    "mlflow",
+                    "scikit-learn",
+                    "pandas",
+                    "numpy",
+                    "scipy",
+                    "matplotlib",
+                    "seaborn",
+                    "joblib",
+                ],
             )
+            logger.info(
+                f"Model {model_type.value} successfully logged. "
+                f"Test RMSE: {metrics['RMSE']:.2f} | R2: {metrics['R2']:.4f}"
+            )
+
+    def _log_metadata(self, model_type, num_feats, cat_feats):
+        mlflow.log_params({
+            "model_type": model_type.value,
+            "area_limit_sqm": self.config.AREA_LIMIT_SQM,
+            "min_price_threshold": self.config.MIN_PRICE_THRESHOLD,
+            "test_size": self.config.TEST_SIZE,
+            "random_state": self.config.RANDOM_STATE,
+            "features_count": len(num_feats) + len(cat_feats)
+        })
+        mlflow.log_param("features_numeric", num_feats)
+        mlflow.log_param("features_categorical", cat_feats)
+
+    def _generate_artifacts(self, y_test, y_pred, model_type, reports_dir):
+        pred_path = reports_dir / f"{model_type.value}_pred.png"
+        res_path = reports_dir / f"{model_type.value}_residuals.png"
+
+        self.visualizer.plot_predicted_vs_actual(y_test, y_pred, str(pred_path))
+        self.visualizer.plot_residuals(y_test, y_pred, str(res_path))
+
+        mlflow.log_artifact(str(pred_path))
+        mlflow.log_artifact(str(res_path))
