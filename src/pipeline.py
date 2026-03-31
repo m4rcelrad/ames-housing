@@ -31,6 +31,10 @@ class TrainingPipeline:
 
         logger.info(f"Initializing data ingestion for model: {model_type.value}")
         raw_df = self.loader.fetch_raw_data()
+
+        cols_to_load = self.config.FEATURES_TO_KEEP + [self.config.TARGET_COLUMN]
+        raw_df = raw_df[cols_to_load]
+
         clean_df = self.cleaner.clean_data(raw_df)
 
         for col in clean_df.select_dtypes(include=["int64", "int32", "int16", "int8"]).columns:

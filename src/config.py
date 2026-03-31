@@ -18,3 +18,15 @@ class Config:
     AREA_LIMIT_SQM = 360
     MIN_PRICE_THRESHOLD = 35000
     EXCLUDED_NEIGHBORHOODS = ["Landmark", "Green Hills"]
+
+    FEATURES_TO_KEEP = [
+        "GrLivArea",
+        "TotalBsmtSF",
+        "LotArea",
+        "GarageArea",
+        "OverallQual",
+        "FullBath",
+        "YearBuilt",
+        "Neighborhood",
+        "HouseStyle"
+    ]
