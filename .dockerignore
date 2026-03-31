@@ -1,0 +1,16 @@
+.git
+.gitignore
+.idea
+.venv
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.log
+mlruns
+reports
+exploration
+mlflow.db
+tests/__pycache__
+

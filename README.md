@@ -1,22 +1,96 @@
-# Ames Housing: EDA & Price Prediction
+# Ames Housing - Streamlit + MLflow
 
-Detailed exploratory data analysis (EDA) and predictive modeling of residential real estate prices in Ames, Iowa. The project explores the relationship between property characteristics and market valuations to build a robust regression model.
+This project trains regression models on the Ames Housing dataset and serves predictions through a Streamlit web application.
+MLflow is used for experiment tracking, metric comparison, and model run management.
 
-## Project Overview
-This repository contains a comprehensive study of the Ames Housing dataset. The analysis focuses on market segmentation, outlier detection, and feature engineering to prepare the data for machine learning applications.
+## Features
 
-### Key Technical Features
-* **Data Processing**
-* **Market Segmentation**
-* **Advanced Visualization**
-* **Outlier Management**
+- Train multiple regression models on Ames Housing
+- Track experiments and metrics with MLflow
+- Run single and batch predictions in Streamlit
+- Run locally or with Docker Compose
+- Persist MLflow runs and generated reports across container restarts
+- Includes basic smoke tests
 
-## Future Work: Predictive Model
-The project is currently transitioning into the machine learning phase. Planned steps include:
-1.  **Feature Engineering**: Encoding of categorical variables (Quality, Neighborhood segments).
-2.  **Model Selection**: Comparison of regularized regression and ensemble methods.
-3.  **Validation**: Implementing k-fold cross-validation to ensure model generalizability.
+## Project Structure
 
-## Technologies
-* **Language**: R
-* **Libraries**: `tidyverse`, `AmesHousing`, `ggplot2`, `psych`, `knitr`, `kableExtra`
+- `src/` - core application logic
+- `tests/` - automated tests
+- `streamlit_app.py` - Streamlit user interface
+- `main.py` - training entry point
+- `predict.py` - command-line prediction script
+- `docker-compose.yml` - container orchestration
+- `requirements.txt` - Python dependencies
+
+## Local Setup
+
+### Create and activate a virtual environment
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### Train models locally
+
+```bash
+python main.py
+```
+
+### Start Streamlit locally
+
+```bash
+streamlit run streamlit_app.py
+```
+
+## Docker Setup
+
+### 1) Build and start the web application
+
+```bash
+docker compose up --build app
+```
+
+The app is available at `http://localhost:8501`.
+
+### 2) Start MLflow UI
+
+```bash
+docker compose up mlflow-ui
+```
+
+MLflow UI is available at `http://localhost:5000`.
+
+### 3) Run training in the dedicated `trainer` service
+
+```bash
+docker compose run --rm trainer
+```
+
+Alternative (with profile):
+
+```bash
+docker compose --profile train up trainer
+```
+
+### 4) Run CLI prediction in a container
+
+```bash
+docker compose run --rm app python predict.py
+```
+
+## Persistent Data
+
+`docker-compose.yml` mounts these volumes:
+- `./mlruns -> /app/mlruns`
+- `./reports -> /app/reports`
+
+This keeps MLflow runs and report artifacts on the host after container restarts.
+
+## Smoke Tests
+
+```bash
+python -m unittest discover -s tests
+```
+
