@@ -15,6 +15,7 @@ class Config:
     ]
 
     REMAINDER_STRATEGY = "passthrough"
+    MLFLOW_EXPERIMENT_NAME = "Ames_Housing_Tournament"
     AREA_LIMIT_SQM = 360
     MIN_PRICE_THRESHOLD = 35000
     EXCLUDED_NEIGHBORHOODS = ["Landmark", "Green Hills"]
